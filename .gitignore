@@ -6,3 +6,4 @@ figma-plugin/dist/
 .env
 .env.*
 bench/results/*.json
+.claude/**
