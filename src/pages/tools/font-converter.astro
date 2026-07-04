@@ -353,6 +353,12 @@ const faq = [
       fontFile = null; fontAB = null;
       document.getElementById('fontDiag')!.classList.add('hidden');
       document.getElementById('fontFormatRows')!.classList.add('hidden');
+      // Hide the whole controls panel; loadFont sets an inline display:flex
+      // that would otherwise override the `hidden` class, so clear it too.
+      const controls = document.getElementById('fontControls')!;
+      controls.style.display = '';
+      controls.classList.add('hidden');
+      document.getElementById('fontStatus')!.classList.add('hidden');
     },
     typeLabel: (file) => `${extOf(file.name).toUpperCase()} font`,
   });

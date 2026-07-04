@@ -264,6 +264,9 @@ const faq = [
         else diffTextB = null;
         (document.getElementById('diffBtn') as HTMLButtonElement).disabled = true;
         document.getElementById('diffStatus')!.classList.add('hidden');
+        // Drop the now-stale diff for the removed file.
+        document.getElementById('diffResults')!.hidden = true;
+        document.getElementById('diffOutput')!.innerHTML = '';
       },
     });
   }
