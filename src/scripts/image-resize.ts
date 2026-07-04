@@ -1,19 +1,12 @@
 import type { Alpine } from 'alpinejs';
-
-function fmtBytes(b: number): string {
-  if (b < 1024) return b + ' B';
-  if (b < 1048576) return (b / 1024).toFixed(1) + ' KB';
-  return (b / 1048576).toFixed(2) + ' MB';
-}
-function baseName(name: string): string { return name.replace(/\.[^.]+$/, ''); }
+import { fmtBytes, baseName, extOf } from '@/lib/utils';
+import { wireDropZone } from '@/lib/file-dropzone';
 
 export function imageResizer() {
   return {
     helpful: 0,
-    dragOver: false,
     fileLoaded: false,
     processing: false,
-    fileInfo: '',
     w: 800,
     h: 600,
     lockAspect: true,
@@ -48,19 +41,26 @@ export function imageResizer() {
       { label: '2∶3',  ratio: 2 / 3 },
     ],
 
-    handleDrop(e: DragEvent) {
-      this.dragOver = false;
-      const file = e.dataTransfer?.files[0];
-      if (file) this._load(file);
+    init() {
+      wireDropZone('ir-drop', {
+        onFile: (file) => { this._load(file); },
+        onClear: () => { this._clear(); },
+        typeLabel: (file) => `${extOf(file.name).toUpperCase()} image`,
+      });
     },
-    handleFileInput(e: Event) {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (file) this._load(file);
+
+    _clear() {
+      this._file = null;
+      this._img = null;
+      this.fileLoaded = false;
+      this.previewSrc = '';
+      this.thumbSrc = '';
+      this.origDims = '';
+      this.status = '';
     },
 
     _load(file: File) {
       this._file = file;
-      this.fileInfo = `${file.name} · ${fmtBytes(file.size)}`;
       const reader = new FileReader();
       reader.onload = (ev) => {
         const img = new Image();
@@ -71,7 +71,7 @@ export function imageResizer() {
           this.origDims = `${img.naturalWidth} × ${img.naturalHeight} px`;
           this.thumbSrc = ev.target!.result as string;
           this.cropW = 0;
-          const ext = file.name.split('.').pop()?.toLowerCase() || '';
+          const ext = extOf(file.name);
           this.format = ext === 'png' ? 'png' : ext === 'webp' ? 'webp' : 'jpeg';
           this.fileLoaded = true;
           this._setStatus('Loaded — drag thumbnail to crop, then Resize & Download.', 'info');

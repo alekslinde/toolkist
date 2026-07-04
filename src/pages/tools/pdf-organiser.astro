@@ -4,6 +4,7 @@ import Breadcrumbs from '@/components/Breadcrumbs.astro';
 import QuickTips from '@/components/QuickTips.astro';
 import HelpfulButton from '@/components/HelpfulButton.astro';
 import ToolSEO from '@/components/ToolSEO.astro';
+import FileDropZone from '@/components/FileDropZone.astro';
 
 const tips = [
   { heading: 'Load multiple PDFs', body: 'Drop several PDFs at once — all their pages appear as draggable thumbnails in one view.' },
@@ -43,15 +44,14 @@ const faq = [
         <div class="rounded-md border border-slate-200 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
 
           <!-- Drop zone -->
-          <div id="dropZone"
-            class="relative mb-6 flex cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed border-slate-200 bg-slate-50 px-6 py-10 text-center transition-colors hover:border-purple-300 hover:bg-purple-50/30"
-            role="button" tabindex="0"
-          >
-            <span class="mb-2 text-3xl text-slate-300" aria-hidden="true">↓</span>
-            <p class="text-sm font-medium text-slate-700">Drop PDF files here</p>
-            <p class="mt-1 text-xs text-slate-400">One or more PDFs accepted</p>
-            <input id="fileInput" type="file" class="sr-only" accept=".pdf,application/pdf" multiple />
-          </div>
+          <FileDropZone
+            id="dropZone"
+            variant="multi"
+            accept=".pdf,application/pdf"
+            prompt="Drop PDF files here"
+            hint="One or more PDFs accepted"
+            label="Drop PDFs or click to browse"
+          />
 
           <!-- Controls bar -->
           <div id="controls" class="mb-4 hidden flex items-center justify-between">
@@ -120,6 +120,7 @@ const faq = [
 
 <script>
   import { PDFDocument } from 'pdf-lib';
+  import { wireMultiDropZone } from '@/lib/file-dropzone';
 
   const PDFJS_CDN = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174';
   let pdfjsReady = false;
@@ -154,7 +155,6 @@ const faq = [
   let dragSrcId: string | null = null;
 
   const dropZone      = document.getElementById('dropZone')!;
-  const fileInput     = document.getElementById('fileInput') as HTMLInputElement;
   const addMoreInput  = document.getElementById('addMoreInput') as HTMLInputElement;
   const controlsEl    = document.getElementById('controls')!;
   const pageCountEl   = document.getElementById('pageCountLabel')!;
@@ -168,29 +168,16 @@ const faq = [
 
   // ── Drop zone ──────────────────────────────────────────────────────────────
 
-  dropZone.addEventListener('click', () => fileInput.click());
-  dropZone.addEventListener('keydown', (e: KeyboardEvent) => {
-    if (e.key === 'Enter' || e.key === ' ') fileInput.click();
-  });
-  dropZone.addEventListener('dragover', (e: DragEvent) => {
-    e.preventDefault();
-    dropZone.classList.add('border-purple-400', 'bg-purple-50/50');
-  });
-  dropZone.addEventListener('dragleave', () => {
-    dropZone.classList.remove('border-purple-400', 'bg-purple-50/50');
-  });
-  dropZone.addEventListener('drop', (e: DragEvent) => {
-    e.preventDefault();
-    dropZone.classList.remove('border-purple-400', 'bg-purple-50/50');
-    const files = Array.from(e.dataTransfer?.files ?? [])
-      .filter(f => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf'));
-    if (files.length) addFiles(files);
+  const onlyPdfs = (files: File[]) =>
+    files.filter(f => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf'));
+
+  wireMultiDropZone('dropZone', {
+    onFiles: (files) => {
+      const pdfs = onlyPdfs(files);
+      if (pdfs.length) addFiles(pdfs);
+    },
   });
 
-  fileInput.addEventListener('change', () => {
-    if (fileInput.files?.length) addFiles(Array.from(fileInput.files));
-    fileInput.value = '';
-  });
   addMoreInput.addEventListener('change', () => {
     if (addMoreInput.files?.length) addFiles(Array.from(addMoreInput.files));
     addMoreInput.value = '';

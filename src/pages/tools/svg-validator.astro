@@ -52,13 +52,14 @@ const faq = [
     <div class="grid grid-cols-1 gap-8 lg:grid-cols-12">
 
       <div class="lg:col-span-8">
+        <div class="rounded-md border border-slate-200 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
 
         <!-- Drop zone -->
         <div id="dropZone"
-          class="mb-5 flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 bg-white px-6 py-12 text-center transition-colors hover:border-purple-300 hover:bg-purple-50/20"
+          class="mb-5 flex cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed border-slate-200 bg-slate-50 px-6 py-10 text-center transition-colors hover:border-purple-300 hover:bg-purple-50/30"
           role="button" tabindex="0" aria-label="Drop SVG file or click to browse"
         >
-          <div class="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-100 to-purple-100 text-sm font-bold text-purple-600">SVG</div>
+          <div class="mb-3 flex h-11 w-11 items-center justify-center rounded-md bg-gradient-to-br from-indigo-100 to-purple-100 text-sm font-bold text-purple-600">SVG</div>
           <p class="text-sm font-medium text-slate-700">Drop an SVG file here</p>
           <p class="mt-1 text-xs text-slate-400">or <span class="text-purple-500 underline underline-offset-2">click to browse</span></p>
           <input id="svgFileInput" type="file" accept=".svg,image/svg+xml" class="sr-only" />
@@ -100,9 +101,9 @@ const faq = [
                   Download
                 </button>
                 <span class="mx-0.5 hidden h-4 w-px self-center bg-slate-200 sm:block"></span>
-                <button id="resetBtn"
-                  class="rounded-md border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-400 transition-colors hover:border-rose-200 hover:text-rose-500">
-                  ✕
+                <button id="resetBtn" aria-label="Clear and load another"
+                  class="rounded-md border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-500 transition-colors hover:border-rose-300 hover:text-rose-600">
+                  ✕ Clear
                 </button>
               </div>
             </div>
@@ -173,6 +174,7 @@ const faq = [
 
         </div><!-- /mainPanel -->
 
+        </div><!-- /card -->
       </div>
 
       <!-- Sidebar -->
@@ -247,14 +249,14 @@ const faq = [
     });
     dropZone.addEventListener('dragover', (e) => {
       e.preventDefault();
-      dropZone.classList.add('border-purple-400', 'bg-purple-50/40');
+      dropZone.classList.add('border-purple-400', 'bg-purple-50/50');
     });
     dropZone.addEventListener('dragleave', () => {
-      dropZone.classList.remove('border-purple-400', 'bg-purple-50/40');
+      dropZone.classList.remove('border-purple-400', 'bg-purple-50/50');
     });
     dropZone.addEventListener('drop', (e) => {
       e.preventDefault();
-      dropZone.classList.remove('border-purple-400', 'bg-purple-50/40');
+      dropZone.classList.remove('border-purple-400', 'bg-purple-50/50');
       const file = e.dataTransfer?.files[0];
       if (file) loadFile(file);
     });
