@@ -25,50 +25,83 @@ src/
       <slug>.astro        — One file per tool (19 tools)
   layouts/
     MainLayout.astro      — Shared header/sidebar/footer
-  components/
+  components/             — Shared .astro components (check here first)
     Breadcrumbs.astro
     FAQAccordion.astro
+    HelpfulButton.astro
     QuickTips.astro
     ToolCard.astro
+    ToolSEO.astro
   data/
     tools.ts              — Master tool registry (slug, title, description, category, tags)
     nav.ts                — Navigation structure
-  lib/
+  lib/                    — Shared TS logic + colocated *.test.ts files
     color.ts              — Colour utility functions
     utils.ts              — Shared utilities
+    code-minifier.ts, font-converter.ts, scss-converter.ts, brand-extract.ts
 worker/
   counter.js              — Cloudflare Worker: serves static assets + /fontpair + /u endpoints (Durable Objects)
 ```
 
-## Tools (19)
+### Code reuse
+
+- Check `src/components/` before building any new UI, and `src/lib/` before writing helpers.
+- New shared component → `src/components/ComponentName.astro`. New shared logic → `src/lib/<name>.ts` with a colocated `<name>.test.ts`.
+- Extract logic used in 2+ places into `src/lib/`.
+- New tools go in `src/pages/tools/<slug>.astro` and must be registered in `src/data/tools.ts` (use `/new-tool`).
+
+## Tools (26)
+
+Source of truth is `src/data/tools.ts` — keep this table in sync with it.
+
+**Images & Documents**
 
 | Slug | Tool |
 |---|---|
 | `image-compress` | Image Compressor |
 | `image-resize` | Image Resizer |
-| `image-convert` | Image Converter |
+| `image-convert` | Image Converter (incl. HEIC via heic2any) |
 | `ico-generator` | ICO Favicon Generator |
+| `pdf-organiser` | PDF Organiser (reorder/merge, pdf-lib) |
+| `pdf-convert` | PDF Converter (PDF↔image, extract text) |
 | `pdf-compress` | PDF Compressor |
-| `file-diff` | File Diff |
-| `font-converter` | Font Format Converter (opentype.js) |
+| `file-diff` | File Diff (text/code/PDF) |
+
+**Typography & Color**
+
+| Slug | Tool |
+|---|---|
+| `font-converter` | Font Format Converter (opentype.js / wawoff2) |
 | `font-inspector` | Font Inspector — placeholder (Mixfont Lens removed; opentype.js reimplementation pending) |
-| `font-pairs` | Font Pairs (AI — calls `/fontpair` worker endpoint) |
+| `font-pairs` | Font Pairing Explorer (calls `/fontpair` worker endpoint) |
 | `wcag-contrast` | WCAG Contrast Checker |
 | `color-palette` | Color Palette Generator |
 | `color-gradient` | CSS Gradient Builder |
 | `tints-shades` | Tints & Shades Generator |
+| `color-namer` | Color Namer (CIE Lab ΔE matching) |
+| `color-extractor` | Image Dominant Color Extractor |
+
+**Code & Web**
+
+| Slug | Tool |
+|---|---|
 | `code-formatter` | Code Formatter |
 | `code-minifier` | Code Minifier |
 | `scss-compiler` | SCSS Compiler |
 | `semantic-html` | Semantic HTML Converter |
 | `brand-assets` | Brand Assets Extractor (CORS proxies) |
 | `xd-to-figma` | XD → Figma Packager (jszip) |
+| `svg-validator` | SVG Validator & Repair (svgo) |
+| `token-saver` | Prompt Token Saver |
 
 ## Build & deploy
 
 ```bash
+npm run dev        # astro dev server
 npm run build      # astro build → dist/
 npm run preview    # serve dist/ locally
+npm test           # vitest run (run before committing)
+npm run bench:node # benchmarks (vitest bench)
 npm run deploy     # astro build + wrangler deploy to Cloudflare
 ```
 
@@ -98,9 +131,17 @@ This project uses **Tailwind CSS**. Follow the utility class patterns already us
 - **CORS proxies (Brand Assets).** Uses `api.allorigins.win` and `api.codetabs.com`.
 - **Font pairing requires the Worker.** `font-pairs.astro` calls `POST /fontpair` — this only works when deployed (or when a local tunnel is set up). It will 404 during `npm run preview`.
 
+## Off limits
+
+- **Don't add a backend.** All tools must stay 100% client-side.
+- **Don't switch away from static output.** Astro is configured for no SSR.
+- `worker/counter.js` handles Durable Objects (usage counter) — edit carefully.
+
 ## Git commits
 
 Do not add `Co-Authored-By` trailers, session URLs, or any other metadata to commit messages. The commit hash is sufficient for traceability.
+
+**Commit scopes:** `(ui)` components/layouts/pages · `(tools)` tool logic · `(lib)` shared utilities · `(data)` tools.ts/nav.ts · `(worker)` counter.js · `(config)` build/wrangler/deps
 
 ## Git workflow
 
