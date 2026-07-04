@@ -40,36 +40,37 @@ const faq = [
       <div class="lg:col-span-8">
         <div class="rounded-md border border-slate-200 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
 
-          <!-- Input -->
-          <div class="mb-3">
-            <div class="mb-1.5 flex items-center justify-between">
-              <label class="text-xs font-medium text-slate-600">HTML input</label>
-              <button id="semanticClearBtn" class="text-xs text-slate-400 hover:text-slate-600">Clear</button>
+          <!-- Input + Output side by side -->
+          <div class="mb-4 grid gap-4 lg:grid-cols-2">
+            <div>
+              <div class="mb-1.5 flex items-center justify-between">
+                <label class="text-xs font-medium text-slate-600">HTML input</label>
+                <button id="semanticClearBtn" class="text-xs text-slate-400 hover:text-slate-600">Clear</button>
+              </div>
+              <textarea id="semanticInput" rows="16" spellcheck="false" placeholder="Paste your HTML here…"
+                class="w-full resize-y rounded-md border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-xs text-slate-800 focus:border-purple-400 focus:outline-none"></textarea>
             </div>
-            <textarea id="semanticInput" rows="10" spellcheck="false" placeholder="Paste your HTML here…"
-              class="w-full resize-y rounded-md border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-xs text-slate-800 focus:border-purple-400 focus:outline-none"></textarea>
+
+            <div>
+              <div class="mb-1.5 flex items-center justify-between">
+                <label class="text-xs font-medium text-slate-600">Semantic output</label>
+                <button id="semanticCopyBtn" class="text-xs text-slate-400 hover:text-purple-600">Copy</button>
+              </div>
+              <textarea id="semanticOutput" rows="16" readonly spellcheck="false"
+                class="w-full resize-y rounded-md border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-xs text-slate-700 focus:outline-none"></textarea>
+            </div>
           </div>
 
           <button id="semanticBtn"
-            class="mb-4 w-full rounded-md bg-gradient-to-br from-indigo-500 to-purple-500 px-6 py-3 text-sm font-semibold text-white transition-opacity disabled:opacity-50"
+            class="w-full rounded-md bg-gradient-to-br from-indigo-500 to-purple-500 px-6 py-3 text-sm font-semibold text-white transition-opacity disabled:opacity-50"
             disabled>
             Convert to Semantic HTML
           </button>
 
-          <p id="semanticStatus" class="hidden mb-3 text-center text-sm"></p>
+          <p id="semanticStatus" class="hidden mt-3 text-center text-sm"></p>
 
           <!-- Changes list -->
-          <div id="semanticChanges" class="mb-4"></div>
-
-          <!-- Output -->
-          <div>
-            <div class="mb-1.5 flex items-center justify-between">
-              <label class="text-xs font-medium text-slate-600">Semantic output</label>
-              <button id="semanticCopyBtn" class="text-xs text-slate-400 hover:text-purple-600">Copy</button>
-            </div>
-            <textarea id="semanticOutput" rows="10" readonly spellcheck="false"
-              class="w-full resize-y rounded-md border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-xs text-slate-700 focus:outline-none"></textarea>
-          </div>
+          <div id="semanticChanges" class="mt-4"></div>
 
         </div>
       </div>

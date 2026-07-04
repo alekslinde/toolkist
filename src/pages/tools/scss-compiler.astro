@@ -49,34 +49,35 @@ const faq = [
             ))}
           </div>
 
-          <!-- Input -->
-          <div class="mb-3">
-            <div class="mb-1.5 flex items-center justify-between">
-              <label id="scssInLabel" class="text-xs font-medium text-slate-600">SCSS input</label>
-              <button id="scssClearBtn" class="text-xs text-slate-400 hover:text-slate-600">Clear</button>
+          <!-- Input + Output side by side -->
+          <div class="mb-4 grid gap-4 lg:grid-cols-2">
+            <div>
+              <div class="mb-1.5 flex items-center justify-between">
+                <label id="scssInLabel" class="text-xs font-medium text-slate-600">SCSS input</label>
+                <button id="scssClearBtn" class="text-xs text-slate-400 hover:text-slate-600">Clear</button>
+              </div>
+              <textarea id="scssInput" rows="16" spellcheck="false" placeholder="Paste your SCSS here…"
+                class="w-full resize-y rounded-md border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-xs text-slate-800 focus:border-purple-400 focus:outline-none"></textarea>
             </div>
-            <textarea id="scssInput" rows="10" spellcheck="false" placeholder="Paste your SCSS here…"
-              class="w-full resize-y rounded-md border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-xs text-slate-800 focus:border-purple-400 focus:outline-none"></textarea>
+
+            <div>
+              <div class="mb-1.5 flex items-center justify-between">
+                <label id="scssOutLabel" class="text-xs font-medium text-slate-600">Compiled CSS</label>
+                <button id="scssCopyBtn" class="text-xs text-slate-400 hover:text-purple-600">Copy</button>
+              </div>
+              <textarea id="scssOutput" rows="16" readonly spellcheck="false"
+                class="w-full resize-y rounded-md border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-xs text-slate-700 focus:outline-none"></textarea>
+            </div>
           </div>
 
           <button id="scssBtn"
-            class="mb-4 w-full rounded-md bg-gradient-to-br from-indigo-500 to-purple-500 px-6 py-3 text-sm font-semibold text-white transition-opacity disabled:opacity-50"
+            class="w-full rounded-md bg-gradient-to-br from-indigo-500 to-purple-500 px-6 py-3 text-sm font-semibold text-white transition-opacity disabled:opacity-50"
             disabled>
             Compile
           </button>
 
-          <p id="scssStatus" class="hidden mb-3 text-center text-sm"></p>
-          <p id="scssStats"  class="mb-3 text-xs text-slate-400"></p>
-
-          <!-- Output -->
-          <div>
-            <div class="mb-1.5 flex items-center justify-between">
-              <label id="scssOutLabel" class="text-xs font-medium text-slate-600">Compiled CSS</label>
-              <button id="scssCopyBtn" class="text-xs text-slate-400 hover:text-purple-600">Copy</button>
-            </div>
-            <textarea id="scssOutput" rows="10" readonly spellcheck="false"
-              class="w-full resize-y rounded-md border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-xs text-slate-700 focus:outline-none"></textarea>
-          </div>
+          <p id="scssStatus" class="hidden mt-3 text-center text-sm"></p>
+          <p id="scssStats"  class="mt-3 text-xs text-slate-400"></p>
 
         </div>
       </div>
