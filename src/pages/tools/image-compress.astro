@@ -3,6 +3,7 @@ import MainLayout from '@/layouts/MainLayout.astro';
 import Breadcrumbs from '@/components/Breadcrumbs.astro';
 import QuickTips from '@/components/QuickTips.astro';
 import FAQAccordion from '@/components/FAQAccordion.astro';
+import FileDropZone from '@/components/FileDropZone.astro';
 
 const tips = [
   { heading: 'JPEG for photos',   body: 'Lossy compression — 75–85% quality is usually indistinguishable from lossless.' },
@@ -84,33 +85,13 @@ const faq = [
         <div class="rounded-md border border-slate-200 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
 
           <!-- Drop zone -->
-          <div
-            class="relative mb-6 flex flex-col items-center justify-center rounded-md border-2 border-dashed border-slate-200 bg-slate-50 px-6 py-10 text-center transition-colors hover:border-purple-300 hover:bg-purple-50/30"
-            :class="dragOver ? 'border-purple-400 bg-purple-50/50' : ''"
-            @dragover.prevent="dragOver = true"
-            @dragleave="dragOver = false"
-            @drop.prevent="handleDrop($event)"
-            @click="$refs.fileInput.click()"
-            role="button"
-            tabindex="0"
-            @keydown.enter="$refs.fileInput.click()"
-            @keydown.space.prevent="$refs.fileInput.click()"
-            aria-label="Drop image or click to browse"
-          >
-            <span class="mb-2 text-3xl text-slate-300" aria-hidden="true">↓</span>
-            <p class="text-sm font-medium text-slate-700">Drop an image here</p>
-            <p class="mt-1 text-xs text-slate-400">PNG · JPG · WebP · SVG accepted</p>
-            <input
-              type="file"
-              class="sr-only"
-              accept="image/png,image/jpeg,image/webp,image/svg+xml"
-              x-ref="fileInput"
-              @change="handleFileInput($event)"
-            />
-          </div>
-
-          <!-- File info -->
-          <p x-show="fileInfo" class="mb-4 text-xs text-slate-500" x-text="fileInfo"></p>
+          <FileDropZone
+            id="ic-drop"
+            accept="image/png,image/jpeg,image/webp,image/svg+xml"
+            prompt="Drop an image here"
+            hint="PNG · JPG · WebP · SVG accepted"
+            label="Drop image or click to browse"
+          />
 
           <!-- PNG optimisation warning — only when output is lossless PNG -->
           <div

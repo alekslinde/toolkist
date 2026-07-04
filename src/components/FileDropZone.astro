@@ -1,0 +1,87 @@
+---
+/**
+ * Shared single-file drop zone.
+ *
+ * Renders two states inside one drop target: an empty prompt and a filled
+ * card (extension badge · name · size · clear). Wire it in a tool's <script>:
+ *
+ *   import { wireDropZone } from '@/lib/file-dropzone';
+ *   const dz = wireDropZone('my-zone', {
+ *     onFile:    (file) => loadIntoTool(file),
+ *     onClear:   () => resetTool(),
+ *     typeLabel: (f) => 'PNG image',
+ *   });
+ *
+ * The zone stays droppable in the filled state, so dropping a new file
+ * replaces the current one.
+ */
+interface Props {
+  /** Unique id — passed to wireDropZone(). */
+  id: string;
+  /** `accept` attribute for the file input. */
+  accept: string;
+  /** Empty-state headline, e.g. "Drop an image here". */
+  prompt?: string;
+  /** Empty-state sub-line, e.g. "PNG · JPG · WebP · SVG accepted". */
+  hint?: string;
+  /** Accessible label for the drop target. */
+  label?: string;
+}
+
+const {
+  id,
+  accept,
+  prompt = 'Drop a file here',
+  hint = '',
+  label = 'Drop a file or click to browse',
+} = Astro.props;
+---
+
+<div
+  id={id}
+  class="dz group relative mb-6 rounded-md border-2 border-dashed border-slate-200 bg-slate-50 text-center transition-colors hover:border-purple-300 hover:bg-purple-50/30"
+  role="button"
+  tabindex="0"
+  aria-label={label}
+>
+  <!-- Empty state -->
+  <div data-dz-empty class="flex cursor-pointer flex-col items-center justify-center px-6 py-10">
+    <span class="mb-2 text-3xl text-slate-300" aria-hidden="true">↓</span>
+    <p class="text-sm font-medium text-slate-700">{prompt}</p>
+    {hint && <p class="mt-1 text-xs text-slate-400">{hint}</p>}
+  </div>
+
+  <!-- Filled state -->
+  <div data-dz-filled hidden class="flex cursor-pointer items-center gap-4 px-5 py-4 text-left">
+    <span
+      data-dz-badge
+      data-dz-base="inline-flex shrink-0 items-center rounded-md px-2.5 py-1 font-mono text-xs font-semibold"
+      class="inline-flex shrink-0 items-center rounded-md px-2.5 py-1 font-mono text-xs font-semibold bg-slate-100 text-slate-600"
+    ></span>
+
+    <span class="min-w-0 flex-1">
+      <span data-dz-name class="block truncate text-sm font-medium text-slate-800"></span>
+      <span data-dz-meta class="block text-xs text-slate-500"></span>
+      <span class="mt-0.5 block text-[11px] text-slate-400">Drop a new file to replace</span>
+    </span>
+
+    <button
+      type="button"
+      data-dz-clear
+      class="shrink-0 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-500 transition-colors hover:border-rose-300 hover:text-rose-600"
+      aria-label="Remove file"
+    >
+      ✕ Clear
+    </button>
+  </div>
+
+  <input type="file" class="sr-only" accept={accept} data-dz-input />
+</div>
+
+<style>
+  /* Drag-over highlight — the wiring lib toggles data-dz-over on the root. */
+  .dz[data-dz-over='true'] {
+    border-color: rgb(192 132 252); /* purple-400 */
+    background-color: rgb(250 245 255 / 0.5); /* purple-50/50 */
+  }
+</style>

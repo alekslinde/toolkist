@@ -1,27 +1,13 @@
 import type { Alpine } from 'alpinejs';
-
-function fmtBytes(b: number): string {
-  if (b < 1024)       return b + ' B';
-  if (b < 1048576)    return (b / 1024).toFixed(1) + ' KB';
-  return (b / 1048576).toFixed(2) + ' MB';
-}
-
-function baseName(name: string): string {
-  return name.replace(/\.[^.]+$/, '');
-}
-
-function extOf(name: string): string {
-  return (name.split('.').pop() || '').toLowerCase();
-}
+import { fmtBytes, baseName, extOf } from '@/lib/utils';
+import { wireDropZone } from '@/lib/file-dropzone';
 
 export function imageCompressor() {
   return {
     // state
     helpful:       0,
-    dragOver:      false,
     fileLoaded:    false,
     processing:    false,
-    fileInfo:      '',
     format:        'jpeg',
     quality:       82,
     pngReduce:     false,
@@ -46,15 +32,28 @@ export function imageCompressor() {
     _svgText: '',
     _srcSize: 0,
 
-    handleDrop(e: DragEvent) {
-      this.dragOver = false;
-      const file = e.dataTransfer?.files[0];
-      if (file) this._loadFile(file);
+    init() {
+      wireDropZone('ic-drop', {
+        onFile: (file) => { this._loadFile(file); },
+        onClear: () => { this._clear(); },
+        typeLabel: (file) =>
+          file.type === 'image/svg+xml' || extOf(file.name) === 'svg'
+            ? 'SVG vector'
+            : `${extOf(file.name).toUpperCase()} image`,
+      });
     },
 
-    handleFileInput(e: Event) {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (file) this._loadFile(file);
+    _clear() {
+      this._file = null;
+      this._img = null;
+      this._isSvg = false;
+      this._svgText = '';
+      this._srcSize = 0;
+      this.fileLoaded = false;
+      this.pngWarning = '';
+      this.previewSrc = '';
+      this.status = '';
+      this.savingBadge = '';
     },
 
     onFormatChange() {
@@ -67,7 +66,6 @@ export function imageCompressor() {
       this._srcSize = file.size;
       this._isSvg = isSvg;
       this.pngWarning = '';
-      this.fileInfo = `${file.name} · ${fmtBytes(file.size)}`;
 
       if (isSvg) {
         const reader = new FileReader();
