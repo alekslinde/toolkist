@@ -148,24 +148,25 @@ const faq = [
               <div id="icoPFill" class="h-full rounded-full bg-purple-500 transition-all duration-300" style="width:0%"></div>
             </div>
 
-            <button id="icoConvertBtn"
-              class="w-full rounded-md bg-gradient-to-br from-indigo-500 to-purple-500 px-6 py-3 text-sm font-semibold text-white transition-opacity disabled:opacity-50"
-              disabled
-            >
-              Generate & Download .zip
-            </button>
+          </div>
 
-            <p id="icoStatus" class="hidden text-center text-sm"></p>
+          <!-- Action button — always visible, disabled until a file loads -->
+          <button id="icoConvertBtn"
+            class="mt-6 w-full rounded-md bg-gradient-to-br from-indigo-500 to-purple-500 px-6 py-3 text-sm font-semibold text-white transition-opacity disabled:opacity-50"
+            disabled
+          >
+            Generate & Download .zip
+          </button>
 
-            <!-- HTML snippet -->
-            <div id="htmlSnippetSection" class="hidden overflow-hidden rounded-md border border-slate-700 bg-slate-900">
-              <div class="flex items-center justify-between border-b border-slate-700/60 px-4 py-2">
-                <p class="text-xs font-medium text-slate-300">Paste into &lt;head&gt;</p>
-                <button id="copySnippetBtn" class="text-xs text-purple-400 transition-colors hover:text-purple-300">Copy</button>
-              </div>
-              <pre id="htmlSnippetCode" class="overflow-x-auto p-4 text-xs leading-relaxed text-slate-100"></pre>
+          <p id="icoStatus" class="mt-4 hidden text-center text-sm"></p>
+
+          <!-- HTML snippet -->
+          <div id="htmlSnippetSection" class="mt-5 hidden overflow-hidden rounded-md border border-slate-700 bg-slate-900">
+            <div class="flex items-center justify-between border-b border-slate-700/60 px-4 py-2">
+              <p class="text-xs font-medium text-slate-300">Paste into &lt;head&gt;</p>
+              <button id="copySnippetBtn" class="text-xs text-purple-400 transition-colors hover:text-purple-300">Copy</button>
             </div>
-
+            <pre id="htmlSnippetCode" class="overflow-x-auto p-4 text-xs leading-relaxed text-slate-100"></pre>
           </div>
 
         </div>
