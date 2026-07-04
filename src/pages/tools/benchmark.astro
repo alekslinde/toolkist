@@ -376,12 +376,14 @@ import Breadcrumbs from '@/components/Breadcrumbs.astro';
       results.push(r);
     }
 
-    // Compress PNG (lossless — ratio will be ~1 or higher)
+    // Compress PNG (lossless — measure PNG → PNG so the ratio is honest,
+    // not JPEG source → PNG which inflates the ratio to ~1500%).
     {
-      const r = await runBench('compress → PNG (640×480)', sm.blob.size, async () => canvasCompress(sm.img, 'png', 1.0));
+      const pngBaseline = await canvasCompress(sm.img, 'png', 1.0);
+      const r = await runBench('compress → PNG (640×480)', pngBaseline.size, async () => canvasCompress(sm.img, 'png', 1.0));
       const out = await canvasCompress(sm.img, 'png', 1.0);
       const bytes = new Uint8Array(await out.arrayBuffer());
-      r.ratio = out.size / sm.blob.size;
+      r.ratio = out.size / pngBaseline.size;
       r.sanityOk = bytes[0] === 0x89 && bytes[1] === 0x50;
       r.sanityNote = r.sanityOk ? '' : 'not a PNG';
       results.push(r);
