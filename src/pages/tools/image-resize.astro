@@ -169,15 +169,20 @@ const faq = [
               <div class="h-full rounded-full bg-purple-500 transition-all duration-300" :style="`width:${progress}%`"></div>
             </div>
 
-            <!-- Action -->
-            <button
-              class="w-full rounded-md bg-gradient-to-br from-indigo-500 to-purple-500 px-6 py-3 text-sm font-semibold text-white transition-opacity disabled:opacity-50"
-              :disabled="processing"
-              @click="resize()"
-            >
-              <span x-show="!processing">Resize &amp; Download</span>
-              <span x-show="processing">Processing…</span>
-            </button>
+          </div>
+
+          <!-- Action — always visible, disabled until a file loads -->
+          <button
+            class="mt-6 w-full rounded-md bg-gradient-to-br from-indigo-500 to-purple-500 px-6 py-3 text-sm font-semibold text-white transition-opacity disabled:opacity-50"
+            :disabled="!fileLoaded || processing"
+            @click="resize()"
+          >
+            <span x-show="!processing">Resize &amp; Download</span>
+            <span x-show="processing">Processing…</span>
+          </button>
+
+          <!-- Results (shown after file load) -->
+          <div x-show="fileLoaded" class="mt-5 flex flex-col gap-5">
 
             <!-- Status -->
             <p x-show="status" x-text="status" class="text-center text-sm"

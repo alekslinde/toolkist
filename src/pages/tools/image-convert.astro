@@ -117,16 +117,17 @@ const faq = [
               <div id="imgcvtPFill" class="h-full rounded-full bg-purple-500 transition-all duration-300" style="width:0%"></div>
             </div>
 
-            <button id="imgcvtConvertBtn"
-              class="w-full rounded-md bg-gradient-to-br from-indigo-500 to-purple-500 px-6 py-3 text-sm font-semibold text-white transition-opacity disabled:opacity-50"
-              disabled
-            >
-              Convert &amp; Download
-            </button>
-
-            <p id="imgcvtStatus" class="hidden text-center text-sm"></p>
-
           </div>
+
+          <!-- Action button — always visible, disabled until a file loads -->
+          <button id="imgcvtConvertBtn"
+            class="mt-6 w-full rounded-md bg-gradient-to-br from-indigo-500 to-purple-500 px-6 py-3 text-sm font-semibold text-white transition-opacity disabled:opacity-50"
+            disabled
+          >
+            Convert &amp; Download
+          </button>
+
+          <p id="imgcvtStatus" class="mt-4 hidden text-center text-sm"></p>
 
         </div>
       </div>

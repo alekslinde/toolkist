@@ -197,15 +197,20 @@ const faq = [
               ></div>
             </div>
 
-            <!-- Action button -->
-            <button
-              class="w-full rounded-md bg-gradient-to-br from-indigo-500 to-purple-500 px-6 py-3 text-sm font-semibold text-white transition-opacity disabled:opacity-50"
-              :disabled="processing"
-              @click="compress()"
-            >
-              <span x-show="!processing">Preview & Download</span>
-              <span x-show="processing">Processing…</span>
-            </button>
+          </div>
+
+          <!-- Action button — always visible, disabled until a file loads -->
+          <button
+            class="mt-6 w-full rounded-md bg-gradient-to-br from-indigo-500 to-purple-500 px-6 py-3 text-sm font-semibold text-white transition-opacity disabled:opacity-50"
+            :disabled="!fileLoaded || processing"
+            @click="compress()"
+          >
+            <span x-show="!processing">Preview & Download</span>
+            <span x-show="processing">Processing…</span>
+          </button>
+
+          <!-- Results (shown after file load) -->
+          <div x-show="fileLoaded" class="mt-5 flex flex-col gap-5">
 
             <!-- Status -->
             <p
