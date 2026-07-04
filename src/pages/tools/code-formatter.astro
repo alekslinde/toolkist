@@ -60,7 +60,8 @@ const faq = [
           </div>
 
           <button id="fmtBtn"
-            class="mb-4 w-full rounded-md bg-gradient-to-br from-indigo-500 to-purple-500 px-6 py-3 text-sm font-semibold text-white transition-opacity disabled:opacity-50">
+            class="mb-4 w-full rounded-md bg-gradient-to-br from-indigo-500 to-purple-500 px-6 py-3 text-sm font-semibold text-white transition-opacity disabled:opacity-50"
+            disabled>
             Format Code
           </button>
 
@@ -184,8 +185,16 @@ const faq = [
     btn.disabled = false;
   });
 
+  // Gate the CTA on non-empty input.
+  const fmtInputEl = document.getElementById('fmtInput') as HTMLTextAreaElement;
+  const fmtBtnEl   = document.getElementById('fmtBtn') as HTMLButtonElement;
+  function syncFmtBtn() { fmtBtnEl.disabled = fmtInputEl.value.trim() === ''; }
+  fmtInputEl.addEventListener('input', syncFmtBtn);
+  syncFmtBtn();
+
   document.getElementById('fmtClearBtn')!.addEventListener('click', () => {
-    (document.getElementById('fmtInput') as HTMLTextAreaElement).value = '';
+    fmtInputEl.value = '';
+    syncFmtBtn();
   });
 
   document.getElementById('fmtCopyBtn')!.addEventListener('click', function(this: HTMLElement) {

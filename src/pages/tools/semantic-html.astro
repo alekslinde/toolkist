@@ -51,7 +51,8 @@ const faq = [
           </div>
 
           <button id="semanticBtn"
-            class="mb-4 w-full rounded-md bg-gradient-to-br from-indigo-500 to-purple-500 px-6 py-3 text-sm font-semibold text-white transition-opacity disabled:opacity-50">
+            class="mb-4 w-full rounded-md bg-gradient-to-br from-indigo-500 to-purple-500 px-6 py-3 text-sm font-semibold text-white transition-opacity disabled:opacity-50"
+            disabled>
             Convert to Semantic HTML
           </button>
 
@@ -195,8 +196,16 @@ const faq = [
     btn.disabled = false;
   });
 
+  // Gate the CTA on non-empty input.
+  const semanticInputEl = document.getElementById('semanticInput') as HTMLTextAreaElement;
+  const semanticBtnEl   = document.getElementById('semanticBtn') as HTMLButtonElement;
+  function syncSemanticBtn() { semanticBtnEl.disabled = semanticInputEl.value.trim() === ''; }
+  semanticInputEl.addEventListener('input', syncSemanticBtn);
+  syncSemanticBtn();
+
   document.getElementById('semanticClearBtn')!.addEventListener('click', () => {
-    (document.getElementById('semanticInput') as HTMLTextAreaElement).value = '';
+    semanticInputEl.value = '';
+    syncSemanticBtn();
   });
 
   document.getElementById('semanticCopyBtn')!.addEventListener('click', function(this: HTMLElement) {

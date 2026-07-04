@@ -60,7 +60,8 @@ const faq = [
           </div>
 
           <button id="scssBtn"
-            class="mb-4 w-full rounded-md bg-gradient-to-br from-indigo-500 to-purple-500 px-6 py-3 text-sm font-semibold text-white transition-opacity disabled:opacity-50">
+            class="mb-4 w-full rounded-md bg-gradient-to-br from-indigo-500 to-purple-500 px-6 py-3 text-sm font-semibold text-white transition-opacity disabled:opacity-50"
+            disabled>
             Compile
           </button>
 
@@ -212,8 +213,16 @@ const faq = [
     btn.disabled = false;
   });
 
+  // Gate the CTA on non-empty input.
+  const scssInputEl = document.getElementById('scssInput') as HTMLTextAreaElement;
+  const scssBtnEl   = document.getElementById('scssBtn') as HTMLButtonElement;
+  function syncScssBtn() { scssBtnEl.disabled = scssInputEl.value.trim() === ''; }
+  scssInputEl.addEventListener('input', syncScssBtn);
+  syncScssBtn();
+
   document.getElementById('scssClearBtn')!.addEventListener('click', () => {
-    (document.getElementById('scssInput') as HTMLTextAreaElement).value = '';
+    scssInputEl.value = '';
+    syncScssBtn();
   });
 
   document.getElementById('scssCopyBtn')!.addEventListener('click', function(this: HTMLElement) {

@@ -61,7 +61,8 @@ const faq = [
           </div>
 
           <button id="minBtn"
-            class="mb-4 w-full rounded-md bg-gradient-to-br from-indigo-500 to-purple-500 px-6 py-3 text-sm font-semibold text-white transition-opacity disabled:opacity-50">
+            class="mb-4 w-full rounded-md bg-gradient-to-br from-indigo-500 to-purple-500 px-6 py-3 text-sm font-semibold text-white transition-opacity disabled:opacity-50"
+            disabled>
             Minify Code
           </button>
 
@@ -160,8 +161,16 @@ const faq = [
     btn.disabled = false;
   });
 
+  // Gate the CTA on non-empty input.
+  const minInputEl = document.getElementById('minInput') as HTMLTextAreaElement;
+  const minBtnEl   = document.getElementById('minBtn') as HTMLButtonElement;
+  function syncMinBtn() { minBtnEl.disabled = minInputEl.value.trim() === ''; }
+  minInputEl.addEventListener('input', syncMinBtn);
+  syncMinBtn();
+
   document.getElementById('minClearBtn')!.addEventListener('click', () => {
-    (document.getElementById('minInput') as HTMLTextAreaElement).value = '';
+    minInputEl.value = '';
+    syncMinBtn();
   });
 
   document.getElementById('minCopyBtn')!.addEventListener('click', function(this: HTMLElement) {
