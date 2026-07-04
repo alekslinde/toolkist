@@ -6,7 +6,7 @@ import FAQAccordion from '@/components/FAQAccordion.astro';
 
 const tips = [
   { heading: 'JPEG for photos',   body: 'Lossy compression — 75–85% quality is usually indistinguishable from lossless.' },
-  { heading: 'PNG for graphics',  body: 'Lossless — preserves hard edges, text and transparency. Larger than JPEG for photos.' },
+  { heading: 'PNG for graphics',  body: 'Lossless — preserves hard edges, text and transparency. Enable "Reduce colors" to palette-quantise logos & icons for big savings.' },
   { heading: 'WebP for web',      body: 'Modern format with ~30% better compression than JPEG at equivalent quality.' },
   { heading: 'SVG minification',  body: 'Strips comments, metadata and whitespace. Vector quality is never degraded.' },
   { heading: 'Max dimension',     body: 'Optional — downscales before encoding. Useful for removing unnecessary resolution.' },
@@ -34,7 +34,11 @@ const faq = [
   },
   {
     question: 'Does the quality slider affect PNG output?',
-    answer: 'No — PNG is lossless so the quality slider is hidden when PNG is selected. The only way to reduce PNG file size is to lower the resolution or convert to WebP.',
+    answer: 'No — PNG is lossless, so the quality slider is hidden when PNG is selected. To shrink a PNG, enable "Reduce colors" (which converts it to a palette of up to 256 colours — great for logos, icons and flat graphics), lower the resolution, or convert to WebP.',
+  },
+  {
+    question: 'What does "Reduce colors" do to a PNG?',
+    answer: 'It quantises the image to a limited colour palette (2–256 colours) instead of full 24-bit colour. This is how tools like TinyPNG achieve big savings — often 50–70% smaller — with little visible difference on graphics. It runs entirely in your browser. Photos may show slight banding at low colour counts; leave it off for lossless output.',
   },
   {
     question: 'What does "Max dimension" do?',
@@ -139,6 +143,26 @@ const faq = [
                   class="w-full accent-purple-500"
                   x-model="quality"
                 />
+              </div>
+
+              <!-- PNG: reduce colors (lossy palette) -->
+              <div x-show="format === 'png'">
+                <label class="mb-1.5 flex items-center gap-2 text-xs font-medium text-slate-600">
+                  <input type="checkbox" class="accent-purple-500" x-model="pngReduce" />
+                  Reduce colors (smaller file)
+                </label>
+                <div x-show="pngReduce" class="mt-1">
+                  <label class="mb-1.5 block text-xs font-medium text-slate-600" for="png-colors">
+                    Colors — <span class="text-purple-600 font-semibold" x-text="pngColors"></span>
+                  </label>
+                  <input
+                    id="png-colors"
+                    type="range"
+                    min="2" max="256" step="1"
+                    class="w-full accent-purple-500"
+                    x-model="pngColors"
+                  />
+                </div>
               </div>
             </div>
 
@@ -308,6 +332,8 @@ const faq = [
       fileInfo:      '',
       format:        'jpeg',
       quality:       82,
+      pngReduce:     false,
+      pngColors:     256,
       maxDim:        '',
       origSize:      '',
       outSize:       '',
@@ -438,12 +464,22 @@ const faq = [
             ctx.drawImage(this._img, 0, 0, ow, oh);
             this.progress = 60;
 
-            const mime = this.format === 'jpeg' ? 'image/jpeg'
-                       : this.format === 'webp' ? 'image/webp'
-                       : 'image/png';
-            const blob = await new Promise<Blob | null>((res) =>
-              canvas.toBlob(res, mime, this.format === 'png' ? undefined : q)
-            );
+            let blob: Blob | null;
+            if (this.format === 'png' && this.pngReduce) {
+              // Lossy palette PNG via UPNG (reduces to N colors).
+              const { default: UPNG } = await import('upng-js');
+              const rgba = ctx.getImageData(0, 0, ow, oh).data;
+              const colors = Math.min(256, Math.max(2, parseInt(String(this.pngColors)) || 256));
+              const png = UPNG.encode([rgba.buffer], ow, oh, colors);
+              blob = new Blob([png], { type: 'image/png' });
+            } else {
+              const mime = this.format === 'jpeg' ? 'image/jpeg'
+                         : this.format === 'webp' ? 'image/webp'
+                         : 'image/png';
+              blob = await new Promise<Blob | null>((res) =>
+                canvas.toBlob(res, mime, this.format === 'png' ? undefined : q)
+              );
+            }
             if (!blob) throw new Error('Encoding failed.');
 
             this.progress = 85;

@@ -26,7 +26,7 @@ export default defineConfig({
   vite: {
     plugins: [tailwindcss(), wawoff2BindingFix],
     optimizeDeps: {
-      include: ['alpinejs', 'wawoff2/decompress', 'wawoff2/compress'],
+      include: ['alpinejs', 'wawoff2/decompress', 'wawoff2/compress', 'upng-js'],
     },
   },
 });
