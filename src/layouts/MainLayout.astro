@@ -3,7 +3,10 @@ import { ClientRouter } from 'astro:transitions';
 import '@/styles/global.css';
 import { navCategories } from '@/data/nav';
 import changelog from '../../changelog.json';
-import versionData from '../../version.json';
+
+// The header version is derived from the newest changelog entry so the two
+// can never drift out of sync. Keep changelog.json ordered newest-first.
+const currentVersion = changelog[0].version;
 
 interface Props {
   title: string;
@@ -151,7 +154,7 @@ const path = Astro.url.pathname;
           id="version-btn"
           class="hidden cursor-pointer bg-transparent text-xs text-slate-600 transition-colors hover:text-slate-400 lg:block"
           aria-label="View changelog"
-        >v{versionData.version}</button>
+        >v{currentVersion}</button>
 
         <!-- Mobile hamburger -->
         <button
@@ -225,7 +228,7 @@ const path = Astro.url.pathname;
         id="version-btn-mob"
         class="cursor-pointer bg-transparent text-xs text-slate-600 transition-colors hover:text-slate-400"
         aria-label="View changelog"
-      >v{versionData.version}</button>
+      >v{currentVersion}</button>
     </div>
   </div>
 
