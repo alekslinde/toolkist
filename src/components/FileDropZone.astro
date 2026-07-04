@@ -1,9 +1,9 @@
 ---
 /**
- * Shared single-file drop zone.
+ * Shared file drop zone.
  *
- * Renders two states inside one drop target: an empty prompt and a filled
- * card (extension badge · name · size · clear). Wire it in a tool's <script>:
+ * variant="single" (default) — two states in one target: an empty prompt and a
+ * filled card (badge · name · size · clear). Wire with wireDropZone():
  *
  *   import { wireDropZone } from '@/lib/file-dropzone';
  *   const dz = wireDropZone('my-zone', {
@@ -11,35 +11,66 @@
  *     onClear:   () => resetTool(),
  *     typeLabel: (f) => 'PNG image',
  *   });
+ *   // Zone stays droppable while filled → dropping a new file replaces it.
  *
- * The zone stays droppable in the filled state, so dropping a new file
- * replaces the current one.
+ * variant="multi" — a permanent empty prompt (no filled card); the tool renders
+ * its own list/grid + count bar below. Wire with wireMultiDropZone():
+ *
+ *   const dz = wireMultiDropZone('my-zone', { onFiles: (files) => addFiles(files) });
+ *   // Dropping/selecting appends → use for "add more" flows.
  */
+type Variant = 'single' | 'multi';
+type Accent = 'purple' | 'blue' | 'emerald';
+
 interface Props {
-  /** Unique id — passed to wireDropZone(). */
+  /** Unique id — passed to wireDropZone()/wireMultiDropZone(). */
   id: string;
   /** `accept` attribute for the file input. */
   accept: string;
+  /** 'single' (filled card) or 'multi' (permanent prompt + external list). */
+  variant?: Variant;
   /** Empty-state headline, e.g. "Drop an image here". */
   prompt?: string;
   /** Empty-state sub-line, e.g. "PNG · JPG · WebP · SVG accepted". */
   hint?: string;
   /** Accessible label for the drop target. */
   label?: string;
+  /** Hover/drag-over accent colour. Defaults to purple. */
+  accent?: Accent;
+  /** Extra classes on the root (e.g. layout in a dual-zone grid). */
+  class?: string;
 }
 
 const {
   id,
   accept,
+  variant = 'single',
   prompt = 'Drop a file here',
   hint = '',
   label = 'Drop a file or click to browse',
+  accent = 'purple',
+  class: extraClass = '',
 } = Astro.props;
+
+const multiple = variant === 'multi';
+
+// Accent-specific hover classes. Drag-over is handled in <style> per accent.
+const HOVER: Record<Accent, string> = {
+  purple:  'hover:border-purple-300 hover:bg-purple-50/30',
+  blue:    'hover:border-blue-300 hover:bg-blue-50/30',
+  emerald: 'hover:border-emerald-300 hover:bg-emerald-50/30',
+};
 ---
 
 <div
   id={id}
-  class="dz group relative mb-6 rounded-md border-2 border-dashed border-slate-200 bg-slate-50 text-center transition-colors hover:border-purple-300 hover:bg-purple-50/30"
+  data-dz-accent={accent}
+  class:list={[
+    'dz group relative rounded-md border-2 border-dashed border-slate-200 bg-slate-50 text-center transition-colors',
+    variant === 'single' && 'mb-6',
+    HOVER[accent],
+    extraClass,
+  ]}
   role="button"
   tabindex="0"
   aria-label={label}
@@ -51,37 +82,47 @@ const {
     {hint && <p class="mt-1 text-xs text-slate-400">{hint}</p>}
   </div>
 
-  <!-- Filled state -->
-  <div data-dz-filled hidden class="flex cursor-pointer items-center gap-4 px-5 py-4 text-left">
-    <span
-      data-dz-badge
-      data-dz-base="inline-flex shrink-0 items-center rounded-md px-2.5 py-1 font-mono text-xs font-semibold"
-      class="inline-flex shrink-0 items-center rounded-md px-2.5 py-1 font-mono text-xs font-semibold bg-slate-100 text-slate-600"
-    ></span>
+  {/* Filled state (single variant only) */}
+  {variant === 'single' && (
+    <div data-dz-filled hidden class="flex cursor-pointer items-center gap-4 px-5 py-4 text-left">
+      <span
+        data-dz-badge
+        data-dz-base="inline-flex shrink-0 items-center rounded-md px-2.5 py-1 font-mono text-xs font-semibold"
+        class="inline-flex shrink-0 items-center rounded-md px-2.5 py-1 font-mono text-xs font-semibold bg-slate-100 text-slate-600"
+      ></span>
 
-    <span class="min-w-0 flex-1">
-      <span data-dz-name class="block truncate text-sm font-medium text-slate-800"></span>
-      <span data-dz-meta class="block text-xs text-slate-500"></span>
-      <span class="mt-0.5 block text-[11px] text-slate-400">Drop a new file to replace</span>
-    </span>
+      <span class="min-w-0 flex-1">
+        <span data-dz-name class="block truncate text-sm font-medium text-slate-800"></span>
+        <span data-dz-meta class="block text-xs text-slate-500"></span>
+        <span class="mt-0.5 block text-[11px] text-slate-400">Drop a new file to replace</span>
+      </span>
 
-    <button
-      type="button"
-      data-dz-clear
-      class="shrink-0 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-500 transition-colors hover:border-rose-300 hover:text-rose-600"
-      aria-label="Remove file"
-    >
-      ✕ Clear
-    </button>
-  </div>
+      <button
+        type="button"
+        data-dz-clear
+        class="shrink-0 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-500 transition-colors hover:border-rose-300 hover:text-rose-600"
+        aria-label="Remove file"
+      >
+        ✕ Clear
+      </button>
+    </div>
+  )}
 
-  <input type="file" class="sr-only" accept={accept} data-dz-input />
+  <input type="file" class="sr-only" accept={accept} multiple={multiple} data-dz-input />
 </div>
 
 <style>
   /* Drag-over highlight — the wiring lib toggles data-dz-over on the root. */
-  .dz[data-dz-over='true'] {
+  .dz[data-dz-over='true'][data-dz-accent='purple'] {
     border-color: rgb(192 132 252); /* purple-400 */
     background-color: rgb(250 245 255 / 0.5); /* purple-50/50 */
+  }
+  .dz[data-dz-over='true'][data-dz-accent='blue'] {
+    border-color: rgb(96 165 250); /* blue-400 */
+    background-color: rgb(239 246 255 / 0.5); /* blue-50/50 */
+  }
+  .dz[data-dz-over='true'][data-dz-accent='emerald'] {
+    border-color: rgb(52 211 153); /* emerald-400 */
+    background-color: rgb(236 253 245 / 0.5); /* emerald-50/50 */
   }
 </style>

@@ -88,6 +88,62 @@ export interface DropZoneHandle {
   reset: () => void;
 }
 
+export interface MultiDropZoneOptions {
+  /** Called with the dropped/selected files (already filtered to a list). */
+  onFiles: (files: File[]) => void;
+}
+
+/**
+ * Shared drag/click/keyboard wiring for a `<FileDropZone>` root. Toggles the
+ * `data-dz-over` highlight and opens the picker on click/Enter/Space. Returns
+ * the file input so callers can attach their own change/drop handling.
+ */
+function bindZone(root: HTMLElement, onDrop: (files: FileList | undefined) => void): HTMLInputElement {
+  const input = root.querySelector<HTMLInputElement>('[data-dz-input]')!;
+
+  root.addEventListener('click', () => input.click());
+  root.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      input.click();
+    }
+  });
+  root.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    root.dataset.dzOver = 'true';
+  });
+  root.addEventListener('dragleave', () => { delete root.dataset.dzOver; });
+  root.addEventListener('drop', (e) => {
+    e.preventDefault();
+    delete root.dataset.dzOver;
+    onDrop(e.dataTransfer?.files);
+  });
+
+  return input;
+}
+
+/**
+ * Wire a `<FileDropZone variant="multi" id={id}>`. The zone shows a permanent
+ * prompt (no filled card) — the tool renders its own list/grid + count bar.
+ * Dropping or selecting files appends via `onFiles`, so it doubles as the
+ * "add more" affordance.
+ */
+export function wireMultiDropZone(id: string, opts: MultiDropZoneOptions): void {
+  const root = document.getElementById(id);
+  if (!root) throw new Error(`FileDropZone #${id} not found`);
+
+  const emit = (list: FileList | undefined) => {
+    const files = Array.from(list ?? []);
+    if (files.length) opts.onFiles(files);
+  };
+
+  const input = bindZone(root, emit);
+  input.addEventListener('change', () => {
+    emit(input.files ?? undefined);
+    input.value = ''; // allow re-selecting the same files
+  });
+}
+
 /**
  * Wire a `<FileDropZone id={id}>` instance. Expects the component's markup
  * (empty prompt, filled card, hidden input, clear button, all tagged with
@@ -133,28 +189,9 @@ export function wireDropZone(id: string, opts: DropZoneOptions): DropZoneHandle 
     if (ok !== false) render(file);
   };
 
-  // Click anywhere on the zone (empty or filled) opens the picker — except the
-  // clear button, which stops propagation below.
-  root.addEventListener('click', () => input.click());
-  root.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      input.click();
-    }
-  });
-
+  // Shared drag/click/keyboard wiring; drop takes the first file (single mode).
+  bindZone(root, (files) => accept(files?.[0]));
   input.addEventListener('change', () => accept(input.files?.[0]));
-
-  root.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    root.dataset.dzOver = 'true';
-  });
-  root.addEventListener('dragleave', () => { delete root.dataset.dzOver; });
-  root.addEventListener('drop', (e) => {
-    e.preventDefault();
-    delete root.dataset.dzOver;
-    accept(e.dataTransfer?.files[0]);
-  });
 
   clearBtn.addEventListener('click', (e) => {
     e.stopPropagation(); // don't trigger the browse click

@@ -4,6 +4,7 @@ import Breadcrumbs from '@/components/Breadcrumbs.astro';
 import QuickTips from '@/components/QuickTips.astro';
 import HelpfulButton from '@/components/HelpfulButton.astro';
 import ToolSEO from '@/components/ToolSEO.astro';
+import FileDropZone from '@/components/FileDropZone.astro';
 
 const tips = [
   { heading: 'Auto-compare', body: 'Drop both files and the diff runs immediately — no button click needed.' },
@@ -53,30 +54,28 @@ const faq = [
 
             <div>
               <p class="mb-2 text-xs font-medium text-slate-600">File A (original)</p>
-              <div id="diffDropA"
-                class="flex cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center transition-colors hover:border-blue-300 hover:bg-blue-50/30"
-                role="button" tabindex="0"
-              >
-                <span class="mb-1 text-2xl text-slate-300">A</span>
-                <p class="text-xs font-medium text-slate-600">Drop file A</p>
-                <p class="mt-0.5 text-[10px] text-slate-400">text · code · PDF</p>
-                <input id="diffFileInputA" type="file" class="sr-only" />
-              </div>
-              <p id="diffInfoA" class="mt-2 hidden text-xs text-slate-500"></p>
+              <FileDropZone
+                id="diffDropA"
+                accept=""
+                accent="blue"
+                prompt="Drop file A"
+                hint="text · code · PDF"
+                label="Drop file A or click to browse"
+                class="mb-0"
+              />
             </div>
 
             <div>
               <p class="mb-2 text-xs font-medium text-slate-600">File B (changed)</p>
-              <div id="diffDropB"
-                class="flex cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center transition-colors hover:border-emerald-300 hover:bg-emerald-50/30"
-                role="button" tabindex="0"
-              >
-                <span class="mb-1 text-2xl text-slate-300">B</span>
-                <p class="text-xs font-medium text-slate-600">Drop file B</p>
-                <p class="mt-0.5 text-[10px] text-slate-400">text · code · PDF</p>
-                <input id="diffFileInputB" type="file" class="sr-only" />
-              </div>
-              <p id="diffInfoB" class="mt-2 hidden text-xs text-slate-500"></p>
+              <FileDropZone
+                id="diffDropB"
+                accept=""
+                accent="emerald"
+                prompt="Drop file B"
+                hint="text · code · PDF"
+                label="Drop file B or click to browse"
+                class="mb-0"
+              />
             </div>
 
           </div>
@@ -171,15 +170,11 @@ const faq = [
 </style>
 
 <script>
+  import { wireDropZone } from '@/lib/file-dropzone';
+
   /* ── State ── */
   let diffTextA: string | null = null;
   let diffTextB: string | null = null;
-
-  function fmtBytes(b: number): string {
-    if (b < 1024) return b + ' B';
-    if (b < 1048576) return (b / 1024).toFixed(1) + ' KB';
-    return (b / 1048576).toFixed(2) + ' MB';
-  }
 
   function showStatus(msg: string, type: 'ok' | 'err' | 'info') {
     const el = document.getElementById('diffStatus')!;
@@ -261,32 +256,25 @@ const faq = [
   }
 
   /* ── Drop zones ── */
-  function setupDrop(zoneId: string, inputId: string, slot: 'A' | 'B') {
-    const zone = document.getElementById(zoneId)!;
-    const input = document.getElementById(inputId) as HTMLInputElement;
-
-    zone.addEventListener('click', () => input.click());
-    zone.addEventListener('keydown', (e: KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') input.click(); });
-    zone.addEventListener('dragover', (e: DragEvent) => { e.preventDefault(); zone.classList.add('border-purple-400'); });
-    zone.addEventListener('dragleave', () => zone.classList.remove('border-purple-400'));
-    zone.addEventListener('drop', (e: DragEvent) => {
-      e.preventDefault(); zone.classList.remove('border-purple-400');
-      const file = e.dataTransfer?.files[0];
-      if (file) loadSlot(file, slot);
+  function setupDrop(zoneId: string, slot: 'A' | 'B') {
+    return wireDropZone(zoneId, {
+      onFile: (file) => { loadSlot(file, slot); },
+      onClear: () => {
+        if (slot === 'A') diffTextA = null;
+        else diffTextB = null;
+        (document.getElementById('diffBtn') as HTMLButtonElement).disabled = true;
+        document.getElementById('diffStatus')!.classList.add('hidden');
+      },
     });
-    input.addEventListener('change', () => { if (input.files?.[0]) loadSlot(input.files[0], slot); });
   }
 
-  setupDrop('diffDropA', 'diffFileInputA', 'A');
-  setupDrop('diffDropB', 'diffFileInputB', 'B');
+  setupDrop('diffDropA', 'A');
+  setupDrop('diffDropB', 'B');
 
   async function loadSlot(file: File, slot: 'A' | 'B') {
     showStatus('Loading…', 'info');
     try {
       const text = await extractText(file);
-      const infoEl = document.getElementById(`diffInfo${slot}`)!;
-      infoEl.textContent = `${file.name} · ${fmtBytes(file.size)}`;
-      infoEl.classList.remove('hidden');
 
       if (slot === 'A') diffTextA = text;
       else diffTextB = text;
