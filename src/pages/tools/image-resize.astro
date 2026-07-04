@@ -4,6 +4,7 @@ import Breadcrumbs from '@/components/Breadcrumbs.astro';
 import QuickTips from '@/components/QuickTips.astro';
 import FAQAccordion from '@/components/FAQAccordion.astro';
 import FileDropZone from '@/components/FileDropZone.astro';
+import ColorPicker from '@/components/ColorPicker.astro';
 
 const tips = [
   { heading: 'Contain', body: 'Scales to fit inside the target box, keeping aspect ratio. Edges stay transparent.' },
@@ -147,8 +148,7 @@ const faq = [
             <!-- Pad colour -->
             <div x-show="fit === 'pad'" class="flex items-center gap-3">
               <label class="text-xs font-medium text-slate-600">Pad colour</label>
-              <input type="color" class="h-8 w-14 cursor-pointer rounded border border-slate-200"
-                x-model="padColor" @input="padColorHex = padColor" />
+              <ColorPicker size="sm" x-model="padColor" @input="padColorHex = padColor" />
               <input type="text" maxlength="7" placeholder="#ffffff"
                 class="w-28 rounded-md border border-slate-200 bg-slate-50 px-3 py-1.5 font-mono text-sm text-slate-900 focus:border-purple-400 focus:outline-none"
                 x-model="padColorHex" @input="syncPadHex($event)" />

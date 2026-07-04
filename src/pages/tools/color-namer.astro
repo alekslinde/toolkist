@@ -4,6 +4,7 @@ import Breadcrumbs from '@/components/Breadcrumbs.astro';
 import QuickTips from '@/components/QuickTips.astro';
 import HelpfulButton from '@/components/HelpfulButton.astro';
 import ToolSEO from '@/components/ToolSEO.astro';
+import ColorPicker from '@/components/ColorPicker.astro';
 
 const tips = [
   { heading: 'Lab distance',   body: 'Matching uses CIE Lab color space — distances map to how different two colors actually look to the human eye, not just their numeric difference.' },
@@ -43,10 +44,7 @@ const faq = [
 
           <!-- Input row -->
           <div class="mb-6 flex items-center gap-3">
-            <label class="relative shrink-0 cursor-pointer" aria-label="Color picker">
-              <input id="colorPicker" type="color" value="#3b82f6"
-                class="h-12 w-12 cursor-pointer rounded-lg border-2 border-slate-200 p-1 transition-colors hover:border-purple-300" />
-            </label>
+            <ColorPicker id="colorPicker" value="#3b82f6" aria-label="Color picker" />
             <div class="flex-1">
               <input id="colorInput" type="text" value="#3b82f6" spellcheck="false"
                 placeholder="#3b82f6 · rgb(59,130,246) · hsl(219,91%,60%)"

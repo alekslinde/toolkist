@@ -4,6 +4,7 @@ import Breadcrumbs from '@/components/Breadcrumbs.astro';
 import QuickTips from '@/components/QuickTips.astro';
 import HelpfulButton from '@/components/HelpfulButton.astro';
 import ToolSEO from '@/components/ToolSEO.astro';
+import ColorPicker from '@/components/ColorPicker.astro';
 
 const tips = [
   { heading: '50–100',   body: 'Very light tints — ideal for backgrounds and subtle surfaces.' },
@@ -45,8 +46,7 @@ const faq = [
             <div>
               <label class="mb-1.5 block text-xs font-medium text-slate-600">Base colour</label>
               <div class="flex items-center gap-2">
-                <input id="palettePicker" type="color" value="#6366f1"
-                  class="h-10 w-14 cursor-pointer rounded border border-slate-200" />
+                <ColorPicker id="palettePicker" value="#6366f1" />
                 <input id="paletteHex" type="text" value="#6366f1" maxlength="7" spellcheck="false" placeholder="#6366f1"
                   class="w-32 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-sm text-slate-900 focus:border-purple-400 focus:outline-none" />
               </div>
