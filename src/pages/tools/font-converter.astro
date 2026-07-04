@@ -92,16 +92,17 @@ const faq = [
             <!-- Per-format conversion log -->
             <div id="fontFormatRows" class="hidden divide-y divide-slate-100 rounded-md border border-slate-100 bg-slate-50 px-3 py-1 text-xs"></div>
 
-            <button id="fontConvertBtn"
-              class="w-full rounded-md bg-gradient-to-br from-indigo-500 to-purple-500 px-6 py-3 text-sm font-semibold text-white transition-opacity disabled:opacity-50"
-              disabled
-            >
-              Convert &amp; Download
-            </button>
-
-            <p id="fontStatus" class="hidden text-center text-sm"></p>
-
           </div>
+
+          <!-- Action button — always visible, disabled until a file loads -->
+          <button id="fontConvertBtn"
+            class="mt-6 w-full rounded-md bg-gradient-to-br from-indigo-500 to-purple-500 px-6 py-3 text-sm font-semibold text-white transition-opacity disabled:opacity-50"
+            disabled
+          >
+            Convert &amp; Download
+          </button>
+
+          <p id="fontStatus" class="mt-4 hidden text-center text-sm"></p>
 
         </div>
       </div>
@@ -351,6 +352,7 @@ const faq = [
     onFile: (file) => { loadFont(file); },
     onClear: () => {
       fontFile = null; fontAB = null;
+      (document.getElementById('fontConvertBtn') as HTMLButtonElement).disabled = true;
       document.getElementById('fontDiag')!.classList.add('hidden');
       document.getElementById('fontFormatRows')!.classList.add('hidden');
       // Hide the whole controls panel; loadFont sets an inline display:flex
