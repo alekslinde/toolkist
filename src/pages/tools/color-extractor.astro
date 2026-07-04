@@ -4,6 +4,7 @@ import Breadcrumbs from '@/components/Breadcrumbs.astro';
 import QuickTips from '@/components/QuickTips.astro';
 import HelpfulButton from '@/components/HelpfulButton.astro';
 import ToolSEO from '@/components/ToolSEO.astro';
+import FileDropZone from '@/components/FileDropZone.astro';
 
 const tips = [
   { heading: 'Median cut',      body: 'Colors are found with the median cut algorithm — it recursively splits the widest color range, giving perceptually balanced palettes.' },
@@ -42,15 +43,13 @@ const faq = [
         <div class="rounded-md border border-slate-200 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
 
           <!-- Drop zone -->
-          <div id="dropZone"
-            class="relative mb-6 flex cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed border-slate-200 bg-slate-50 px-6 py-10 text-center transition-colors hover:border-purple-300 hover:bg-purple-50/30"
-            role="button" tabindex="0" aria-label="Drop image or click to browse"
-          >
-            <span class="mb-2 text-3xl text-slate-300" aria-hidden="true">↓</span>
-            <p class="text-sm font-medium text-slate-700">Drop an image here</p>
-            <p class="mt-1 text-xs text-slate-400">PNG · JPG · WebP · GIF accepted</p>
-            <input id="fileInput" type="file" class="sr-only" accept="image/*" />
-          </div>
+          <FileDropZone
+            id="dropZone"
+            accept="image/*"
+            prompt="Drop an image here"
+            hint="PNG · JPG · WebP · GIF accepted"
+            label="Drop image or click to browse"
+          />
 
           <!-- Results -->
           <div id="results" class="hidden gap-5">
@@ -130,6 +129,8 @@ const faq = [
   let currentFmt: 'HEX' | 'RGB' | 'HSL' = 'HEX';
   /* ── Color conversions (tuple wrappers over shared @/lib/color) ── */
   import { rgbToHex as rgbToHexFn, isLight as isLightFn } from '@/lib/color';
+  import { extOf } from '@/lib/utils';
+  import { wireDropZone } from '@/lib/file-dropzone';
   function rgbToHex([r, g, b]: RGB): string {
     return rgbToHexFn(r, g, b);
   }
@@ -300,20 +301,17 @@ const faq = [
   }
 
   /* ── Drop zone ── */
-  const zone      = document.getElementById('dropZone')!;
-  const fileInput = document.getElementById('fileInput') as HTMLInputElement;
-
-  zone.addEventListener('click', () => fileInput.click());
-  zone.addEventListener('keydown', (e: KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') fileInput.click(); });
-  zone.addEventListener('dragover', (e: DragEvent) => { e.preventDefault(); zone.classList.add('border-purple-400', 'bg-purple-50/50'); });
-  zone.addEventListener('dragleave', () => zone.classList.remove('border-purple-400', 'bg-purple-50/50'));
-  zone.addEventListener('drop', (e: DragEvent) => {
-    e.preventDefault();
-    zone.classList.remove('border-purple-400', 'bg-purple-50/50');
-    const file = e.dataTransfer?.files[0];
-    if (file) loadFile(file);
+  wireDropZone('dropZone', {
+    onFile: (file) => { loadFile(file); },
+    onClear: () => {
+      currentImg = null;
+      currentPixels = [];
+      const results = document.getElementById('results')!;
+      results.classList.add('hidden');
+      results.classList.remove('flex', 'flex-col');
+    },
+    typeLabel: (file) => `${extOf(file.name).toUpperCase()} image`,
   });
-  fileInput.addEventListener('change', () => { if (fileInput.files?.[0]) loadFile(fileInput.files[0]); });
 
   function loadFile(file: File) {
     const reader = new FileReader();

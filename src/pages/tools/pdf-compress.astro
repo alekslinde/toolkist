@@ -4,6 +4,7 @@ import Breadcrumbs from '@/components/Breadcrumbs.astro';
 import QuickTips from '@/components/QuickTips.astro';
 import HelpfulButton from '@/components/HelpfulButton.astro';
 import ToolSEO from '@/components/ToolSEO.astro';
+import FileDropZone from '@/components/FileDropZone.astro';
 
 const tips = [
   { heading: 'Screen',   body: 'Aggressive compression (40% JPEG quality). Best for email attachments or web previews.' },
@@ -50,17 +51,13 @@ const levels = [
         <div class="rounded-md border border-slate-200 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
 
           <!-- Drop zone -->
-          <div id="pdfDropZone"
-            class="relative mb-6 flex cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed border-slate-200 bg-slate-50 px-6 py-10 text-center transition-colors hover:border-purple-300 hover:bg-purple-50/30"
-            role="button" tabindex="0"
-          >
-            <span class="mb-2 text-3xl text-slate-300" aria-hidden="true">↓</span>
-            <p class="text-sm font-medium text-slate-700">Drop a PDF here</p>
-            <p class="mt-1 text-xs text-slate-400">PDF files only</p>
-            <input id="pdfFileInput" type="file" class="sr-only" accept=".pdf,application/pdf" />
-          </div>
-
-          <p id="pdfFileInfo" class="mb-4 hidden text-xs text-slate-500"></p>
+          <FileDropZone
+            id="pdfDropZone"
+            accept=".pdf,application/pdf"
+            prompt="Drop a PDF here"
+            hint="PDF files only"
+            label="Drop PDF or click to browse"
+          />
 
           <!-- Loaded panel -->
           <div id="pdfLayout" class="hidden flex-col gap-6">
@@ -150,6 +147,7 @@ const levels = [
 
 <script>
   import { PDFDocument, PDFName, PDFDict, PDFString, PDFRawStream, PDFRef } from 'pdf-lib';
+  import { wireDropZone } from '@/lib/file-dropzone';
 
   let pdfFile: File | null = null;
   let pdfBytes: Uint8Array | null = null;
@@ -227,28 +225,25 @@ const levels = [
   }
 
   /* ── Drop zone ── */
-  const zone = document.getElementById('pdfDropZone')!;
-  const fileInput = document.getElementById('pdfFileInput') as HTMLInputElement;
-
-  zone.addEventListener('click', () => fileInput.click());
-  zone.addEventListener('keydown', (e: KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') fileInput.click(); });
-  zone.addEventListener('dragover', (e: DragEvent) => { e.preventDefault(); zone.classList.add('border-purple-400', 'bg-purple-50/50'); });
-  zone.addEventListener('dragleave', () => zone.classList.remove('border-purple-400', 'bg-purple-50/50'));
-  zone.addEventListener('drop', (e: DragEvent) => {
-    e.preventDefault(); zone.classList.remove('border-purple-400', 'bg-purple-50/50');
-    const file = e.dataTransfer?.files[0];
-    if (file) loadPdf(file);
+  wireDropZone('pdfDropZone', {
+    onFile: (file) => {
+      if (!file.name.toLowerCase().endsWith('.pdf') && file.type !== 'application/pdf') {
+        showStatus('Please upload a PDF file.', 'err');
+        return false; // reject — stay in empty state
+      }
+      loadPdf(file);
+    },
+    onClear: () => {
+      pdfFile = null; pdfBytes = null; pdfCompressedCache = {};
+      const layout = document.getElementById('pdfLayout')!;
+      layout.classList.add('hidden');
+      layout.style.display = '';
+    },
+    typeLabel: () => 'PDF document',
   });
-  fileInput.addEventListener('change', () => { if (fileInput.files?.[0]) loadPdf(fileInput.files[0]); });
 
   function loadPdf(file: File) {
-    if (!file.name.toLowerCase().endsWith('.pdf') && file.type !== 'application/pdf') {
-      showStatus('Please upload a PDF file.', 'err'); return;
-    }
     pdfFile = file; pdfCompressedCache = {};
-    const infoEl = document.getElementById('pdfFileInfo')!;
-    infoEl.textContent = `${file.name} · ${fmtBytes(file.size)}`;
-    infoEl.classList.remove('hidden');
 
     const reader = new FileReader();
     reader.onload = async (ev) => {
