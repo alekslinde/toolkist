@@ -95,15 +95,6 @@ export const tools: Tool[] = [
     icon: 'Aa',
   },
   {
-    slug: 'font-inspector',
-    title: 'Font Inspector',
-    shortTitle: 'Font Tools',
-    description: 'Inspect OpenType metadata: classification, weight, designer, license and full glyph set.',
-    category: 'typography',
-    tags: ['font', 'OpenType', 'metadata', 'glyphs', 'inspect'],
-    icon: 'Aa',
-  },
-  {
     slug: 'font-pairs',
     title: 'Font Pairing Explorer',
     shortTitle: 'Font Tools',

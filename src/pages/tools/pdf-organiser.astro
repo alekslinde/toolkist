@@ -80,10 +80,11 @@ const faq = [
             <span id="loadingText">Loading…</span>
           </div>
 
-          <!-- Merge button -->
-          <div id="mergeRow" hidden>
+          <!-- Merge button — always visible, disabled until pages load -->
+          <div id="mergeRow">
             <button id="mergeBtn"
               class="w-full rounded-md bg-gradient-to-br from-indigo-500 to-purple-500 px-6 py-3 text-sm font-semibold text-white transition-opacity disabled:opacity-50"
+              disabled
             >
               Merge &amp; Download
             </button>
@@ -161,7 +162,6 @@ const faq = [
   const pageGrid      = document.getElementById('pageGrid')!;
   const loadingRow    = document.getElementById('loadingRow')!;
   const loadingText   = document.getElementById('loadingText')!;
-  const mergeRow      = document.getElementById('mergeRow')!;
   const mergeBtn      = document.getElementById('mergeBtn') as HTMLButtonElement;
   const statusMsg     = document.getElementById('statusMsg')!;
   const clearBtn      = document.getElementById('clearBtn')!;
@@ -326,7 +326,7 @@ const faq = [
     pageGrid.innerHTML = '';
     dropZone.classList.remove('hidden');
     controlsEl.classList.add('hidden');
-    mergeRow.hidden = true;
+    mergeBtn.disabled = true;
     statusMsg.classList.add('hidden');
   }
 
@@ -338,7 +338,7 @@ const faq = [
     if (!pages.length) { clearAll(); return; }
     dropZone.classList.add('hidden');
     controlsEl.classList.remove('hidden');
-    mergeRow.hidden = false;
+    mergeBtn.disabled = false;
     updateCount();
   }
 

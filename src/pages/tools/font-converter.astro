@@ -92,16 +92,17 @@ const faq = [
             <!-- Per-format conversion log -->
             <div id="fontFormatRows" class="hidden divide-y divide-slate-100 rounded-md border border-slate-100 bg-slate-50 px-3 py-1 text-xs"></div>
 
-            <button id="fontConvertBtn"
-              class="w-full rounded-md bg-gradient-to-br from-indigo-500 to-purple-500 px-6 py-3 text-sm font-semibold text-white transition-opacity disabled:opacity-50"
-              disabled
-            >
-              Convert &amp; Download
-            </button>
-
-            <p id="fontStatus" class="hidden text-center text-sm"></p>
-
           </div>
+
+          <!-- Action button — always visible, disabled until a file loads -->
+          <button id="fontConvertBtn"
+            class="mt-6 w-full rounded-md bg-gradient-to-br from-indigo-500 to-purple-500 px-6 py-3 text-sm font-semibold text-white transition-opacity disabled:opacity-50"
+            disabled
+          >
+            Convert &amp; Download
+          </button>
+
+          <p id="fontStatus" class="mt-4 hidden text-center text-sm"></p>
 
         </div>
       </div>
@@ -158,7 +159,7 @@ const faq = [
     <ToolSEO
       heading="About Font Converter"
       faq={faq}
-      related={`<a href="/tools/font-inspector" class="text-purple-500 hover:underline">Font Inspector</a> · <a href="/tools/ico-generator" class="text-purple-500 hover:underline">ICO Generator</a>`}
+      related={`<a href="/tools/font-pairs" class="text-purple-500 hover:underline">Font Pairs</a> · <a href="/tools/ico-generator" class="text-purple-500 hover:underline">ICO Generator</a>`}
       keywords="font converter, TTF to WOFF, OTF to WOFF2, web font converter, browser font conversion, no upload font tool"
     >
       <p slot="description" class="mb-8 text-sm leading-relaxed text-slate-600">Convert font files between TTF, OTF, WOFF, WOFF2 and EOT formats entirely in your browser. WOFF2 input is decompressed using a WebAssembly build of the reference WOFF2 library before opentype.js parses the font. WOFF2 output is compressed the same way — no server needed.</p>
@@ -351,6 +352,7 @@ const faq = [
     onFile: (file) => { loadFont(file); },
     onClear: () => {
       fontFile = null; fontAB = null;
+      (document.getElementById('fontConvertBtn') as HTMLButtonElement).disabled = true;
       document.getElementById('fontDiag')!.classList.add('hidden');
       document.getElementById('fontFormatRows')!.classList.add('hidden');
       // Hide the whole controls panel; loadFont sets an inline display:flex

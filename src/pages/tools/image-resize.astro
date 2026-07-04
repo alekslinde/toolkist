@@ -4,6 +4,7 @@ import Breadcrumbs from '@/components/Breadcrumbs.astro';
 import QuickTips from '@/components/QuickTips.astro';
 import FAQAccordion from '@/components/FAQAccordion.astro';
 import FileDropZone from '@/components/FileDropZone.astro';
+import ColorPicker from '@/components/ColorPicker.astro';
 
 const tips = [
   { heading: 'Contain', body: 'Scales to fit inside the target box, keeping aspect ratio. Edges stay transparent.' },
@@ -147,8 +148,7 @@ const faq = [
             <!-- Pad colour -->
             <div x-show="fit === 'pad'" class="flex items-center gap-3">
               <label class="text-xs font-medium text-slate-600">Pad colour</label>
-              <input type="color" class="h-8 w-14 cursor-pointer rounded border border-slate-200"
-                x-model="padColor" @input="padColorHex = padColor" />
+              <ColorPicker size="sm" x-model="padColor" @input="padColorHex = padColor" />
               <input type="text" maxlength="7" placeholder="#ffffff"
                 class="w-28 rounded-md border border-slate-200 bg-slate-50 px-3 py-1.5 font-mono text-sm text-slate-900 focus:border-purple-400 focus:outline-none"
                 x-model="padColorHex" @input="syncPadHex($event)" />
@@ -169,15 +169,20 @@ const faq = [
               <div class="h-full rounded-full bg-purple-500 transition-all duration-300" :style="`width:${progress}%`"></div>
             </div>
 
-            <!-- Action -->
-            <button
-              class="w-full rounded-md bg-gradient-to-br from-indigo-500 to-purple-500 px-6 py-3 text-sm font-semibold text-white transition-opacity disabled:opacity-50"
-              :disabled="processing"
-              @click="resize()"
-            >
-              <span x-show="!processing">Resize &amp; Download</span>
-              <span x-show="processing">Processing…</span>
-            </button>
+          </div>
+
+          <!-- Action — always visible, disabled until a file loads -->
+          <button
+            class="mt-6 w-full rounded-md bg-gradient-to-br from-indigo-500 to-purple-500 px-6 py-3 text-sm font-semibold text-white transition-opacity disabled:opacity-50"
+            :disabled="!fileLoaded || processing"
+            @click="resize()"
+          >
+            <span x-show="!processing">Resize &amp; Download</span>
+            <span x-show="processing">Processing…</span>
+          </button>
+
+          <!-- Results (shown after file load) -->
+          <div x-show="fileLoaded" class="mt-5 flex flex-col gap-5">
 
             <!-- Status -->
             <p x-show="status" x-text="status" class="text-center text-sm"

@@ -1,0 +1,45 @@
+---
+/**
+ * Shared native colour picker swatch.
+ *
+ * One canonical look for every `<input type="color">` across the tools so the
+ * initial state matches visually. Extra attributes (id, value, Alpine
+ * directives like x-model / @input, aria-*) pass straight through, so the JS
+ * hooks each tool already relies on keep working:
+ *
+ *   <ColorPicker id="palettePicker" value="#6366f1" />
+ *   <ColorPicker x-model="padColor" ... />
+ *
+ * Size/border are intentionally fixed — pass `class` only to add layout
+ * (margins etc.), not to override the swatch dimensions.
+ */
+type Size = 'default' | 'sm';
+
+interface Props {
+  /** Optional element id, referenced by the tool's script. */
+  id?: string;
+  /** Initial colour, e.g. "#6366f1". */
+  value?: string;
+  /** 'default' — primary base-colour picker. 'sm' — compact inline picker. */
+  size?: Size;
+  /** Extra classes appended after the canonical style (layout only). */
+  class?: string;
+  /** Any other attributes (Alpine directives, aria-*, oninput, …). */
+  [key: string]: any;
+}
+
+const { size = 'default', class: extraClass = '', ...rest } = Astro.props;
+
+// Shared look; only the box dimensions differ between sizes.
+const BASE = 'shrink-0 cursor-pointer rounded border border-slate-200';
+const DIMS: Record<Size, string> = {
+  default: 'h-10 w-14',
+  sm:      'h-8 w-12',
+};
+---
+
+<input
+  type="color"
+  class:list={[BASE, DIMS[size], extraClass]}
+  {...rest}
+/>

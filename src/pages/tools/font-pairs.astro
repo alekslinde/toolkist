@@ -59,14 +59,18 @@ const faq = [
                 ))}
               </div>
             </div>
-            <button id="fpFindBtn"
-              class="rounded-md bg-gradient-to-br from-indigo-500 to-purple-500 px-5 py-2 text-sm font-semibold text-white transition-opacity disabled:opacity-50">
-              Find Pairings
-            </button>
           </div>
 
           <div id="fpResult"></div>
           <div id="ts-widget" aria-hidden="true"></div>
+
+          <!-- Action button — always visible, disabled until a font name is entered -->
+          <button id="fpFindBtn"
+            class="mt-6 w-full rounded-md bg-gradient-to-br from-indigo-500 to-purple-500 px-6 py-3 text-sm font-semibold text-white transition-opacity disabled:opacity-50"
+            disabled
+          >
+            Find Pairings
+          </button>
 
         </div>
       </div>
@@ -82,7 +86,7 @@ const faq = [
     <ToolSEO
       heading="About Font Pairs"
       faq={faq}
-      related={`<a href="/tools/font-inspector" class="text-purple-500 hover:underline">Font Inspector</a> · <a href="/tools/font-converter" class="text-purple-500 hover:underline">Font Converter</a>`}
+      related={`<a href="/tools/font-converter" class="text-purple-500 hover:underline">Font Converter</a>`}
       keywords="font pairing, Google Fonts pairs, heading body font combination, typography pairing tool"
     >
       <p slot="description" class="mb-8 text-sm leading-relaxed text-slate-600">Enter a base font name and choose whether it will be used as a heading or body font. The AI pairing engine suggests complementary typefaces, previews them together and generates a CSS snippet you can paste directly into your project. Preview fonts are loaded from Google Fonts. Works best with Google Fonts names.</p>
@@ -330,7 +334,15 @@ const faq = [
     }
   }
 
-  document.getElementById('fpBaseFontInput')!.addEventListener('keydown', (e: KeyboardEvent) => { if (e.key === 'Enter') findPairs(); });
-  document.getElementById('fpFindBtn')!.addEventListener('click', findPairs);
+  const fpInput   = document.getElementById('fpBaseFontInput') as HTMLInputElement;
+  const fpFindBtn = document.getElementById('fpFindBtn') as HTMLButtonElement;
+
+  // Gate the CTA on a non-empty base font name.
+  function syncFindBtn() { fpFindBtn.disabled = fpInput.value.trim() === ''; }
+  fpInput.addEventListener('input', syncFindBtn);
+  syncFindBtn();
+
+  fpInput.addEventListener('keydown', (e: KeyboardEvent) => { if (e.key === 'Enter' && !fpFindBtn.disabled) findPairs(); });
+  fpFindBtn.addEventListener('click', findPairs);
 
 </script>

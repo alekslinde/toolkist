@@ -76,12 +76,12 @@ const faq = [
           </div>
 
           <div class="mb-4 flex flex-wrap gap-2">
-            <button id="btnCompress"
-              class="rounded-lg bg-gradient-to-br from-indigo-500 to-purple-500 px-5 py-2.5 text-sm font-medium text-white hover:opacity-90">
+            <button id="btnCompress" disabled
+              class="rounded-lg bg-gradient-to-br from-indigo-500 to-purple-500 px-5 py-2.5 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:opacity-50">
               Compress
             </button>
-            <button id="btnClear"
-              class="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:border-purple-300">
+            <button id="btnClear" disabled
+              class="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:border-purple-300 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-slate-200">
               Clear
             </button>
           </div>
@@ -949,9 +949,21 @@ const outputCnt = document.getElementById('outputCount')   as HTMLElement;
 const badge     = document.getElementById('savingsBadge')  as HTMLElement;
 const savingsPctEl = document.getElementById('savingsPct') as HTMLElement;
 
+const btnCompressEl = document.getElementById('btnCompress') as HTMLButtonElement;
+const btnClearEl    = document.getElementById('btnClear')    as HTMLButtonElement;
+
+// Gate both Compress and Clear on non-empty prompt content.
+function syncPromptButtons() {
+  const empty = inputEl.value.trim() === '';
+  btnCompressEl.disabled = empty;
+  btnClearEl.disabled = empty;
+}
+
 inputEl.addEventListener('input', () => {
   inputCnt.textContent = inputEl.value.length + ' chars';
+  syncPromptButtons();
 });
+syncPromptButtons();
 
 document.getElementById('btnCompress')!.addEventListener('click', () => {
   const raw = inputEl.value.trim();
@@ -973,13 +985,14 @@ document.getElementById('btnCompress')!.addEventListener('click', () => {
   (document.getElementById('feedbackNote') as HTMLTextAreaElement).value = '';
 });
 
-document.getElementById('btnClear')!.addEventListener('click', () => {
+btnClearEl.addEventListener('click', () => {
   inputEl.value = '';
   outputEl.innerHTML = '<span class="text-slate-400">Your compressed prompt will appear here…</span>';
   inputCnt.textContent  = '0 chars';
   outputCnt.textContent = '0 chars';
   badge.style.display = 'none';
   (document.getElementById('feedbackArea') as HTMLElement).classList.add('hidden');
+  syncPromptButtons();
 });
 
 // ─── FEEDBACK ────────────────────────────────────────────────────────────────

@@ -4,6 +4,7 @@ import Breadcrumbs from '@/components/Breadcrumbs.astro';
 import QuickTips from '@/components/QuickTips.astro';
 import FAQAccordion from '@/components/FAQAccordion.astro';
 import HelpfulButton from '@/components/HelpfulButton.astro';
+import ColorPicker from '@/components/ColorPicker.astro';
 
 const tips = [
   { heading: 'AA Normal',  body: '4.5:1 minimum for body text under 18pt / 14pt bold.' },
@@ -68,8 +69,7 @@ const faq = [
             <div>
               <label class="mb-1.5 block text-xs font-medium text-slate-600">Foreground colour</label>
               <div class="flex items-center gap-2">
-                <input id="fgPicker" type="color" value="#0f0e0d"
-                  class="h-10 w-14 cursor-pointer rounded border border-slate-200" />
+                <ColorPicker id="fgPicker" value="#0f0e0d" />
                 <input id="fgHex" type="text" value="#0f0e0d" maxlength="7" spellcheck="false"
                   class="flex-1 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-sm text-slate-900 focus:border-purple-400 focus:outline-none" />
               </div>
@@ -77,8 +77,7 @@ const faq = [
             <div>
               <label class="mb-1.5 block text-xs font-medium text-slate-600">Background colour</label>
               <div class="flex items-center gap-2">
-                <input id="bgPicker" type="color" value="#f5f2ec"
-                  class="h-10 w-14 cursor-pointer rounded border border-slate-200" />
+                <ColorPicker id="bgPicker" value="#f5f2ec" />
                 <input id="bgHex" type="text" value="#f5f2ec" maxlength="7" spellcheck="false"
                   class="flex-1 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-sm text-slate-900 focus:border-purple-400 focus:outline-none" />
               </div>

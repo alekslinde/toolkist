@@ -107,15 +107,17 @@ const levels = [
               <div id="pdfPFill" class="h-full rounded-full bg-purple-500 transition-all duration-300" style="width:0%"></div>
             </div>
 
-            <button id="pdfCompressBtn"
-              class="w-full rounded-md bg-gradient-to-br from-indigo-500 to-purple-500 px-6 py-3 text-sm font-semibold text-white transition-opacity disabled:opacity-50"
-            >
-              Compress &amp; Download
-            </button>
-
-            <p id="pdfStatus" class="hidden text-center text-sm"></p>
-
           </div>
+
+          <!-- Action button — always visible, disabled until a file loads -->
+          <button id="pdfCompressBtn"
+            class="mt-6 w-full rounded-md bg-gradient-to-br from-indigo-500 to-purple-500 px-6 py-3 text-sm font-semibold text-white transition-opacity disabled:opacity-50"
+            disabled
+          >
+            Compress &amp; Download
+          </button>
+
+          <p id="pdfStatus" class="mt-4 hidden text-center text-sm"></p>
 
         </div>
       </div>
@@ -235,6 +237,7 @@ const levels = [
     },
     onClear: () => {
       pdfFile = null; pdfBytes = null; pdfCompressedCache = {};
+      (document.getElementById('pdfCompressBtn') as HTMLButtonElement).disabled = true;
       const layout = document.getElementById('pdfLayout')!;
       layout.classList.add('hidden');
       layout.style.display = '';
@@ -251,6 +254,7 @@ const levels = [
       const layout = document.getElementById('pdfLayout')!;
       layout.classList.remove('hidden');
       layout.style.display = 'flex';
+      (document.getElementById('pdfCompressBtn') as HTMLButtonElement).disabled = false;
       document.getElementById('pdfOrigSize')!.textContent = fmtBytes(file.size);
       try {
         const doc = await PDFDocument.load(pdfBytes, { ignoreEncryption: true });
