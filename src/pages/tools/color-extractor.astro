@@ -69,7 +69,6 @@ const faq = [
                     </button>
                   ))}
                 </div>
-                <p id="imgInfo" class="mt-2 text-xs text-slate-400"></p>
               </div>
             </div>
 
@@ -321,7 +320,6 @@ const faq = [
         currentImg = img;
         currentPixels = getPixels(img);
         (document.getElementById('imgPreview') as HTMLImageElement).src = ev.target!.result as string;
-        document.getElementById('imgInfo')!.textContent = `${img.naturalWidth}×${img.naturalHeight}px · ${file.name}`;
         const results = document.getElementById('results')!;
         results.classList.remove('hidden');
         results.classList.add('flex', 'flex-col');
