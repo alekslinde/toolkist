@@ -273,7 +273,9 @@ const faq = [
       document.getElementById('imgcvtStatsGrid')!.hidden = false;
 
       autoSelectFormat(ext);
-      showStatus(`Loaded ${imgcvtOrigW}×${imgcvtOrigH} px — choose output format and convert.`, 'info');
+      // The drop card (filename + size) and stats grid (dimensions) now convey
+      // load state, so clear any transient "Loading…/Decoding…" status here.
+      document.getElementById('imgcvtStatus')!.classList.add('hidden');
     } catch (err: any) {
       showStatus('✕ ' + err.message, 'err');
     }
