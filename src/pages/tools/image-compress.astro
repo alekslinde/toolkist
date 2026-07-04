@@ -112,6 +112,15 @@ const faq = [
           <!-- File info -->
           <p x-show="fileInfo" class="mb-4 text-xs text-slate-500" x-text="fileInfo"></p>
 
+          <!-- PNG optimisation warning — only when output is lossless PNG -->
+          <div
+            x-show="pngWarning && format === 'png' && !pngReduce"
+            class="mb-4 flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700"
+          >
+            <span aria-hidden="true">⚠️</span>
+            <span x-text="pngWarning"></span>
+          </div>
+
           <!-- Controls (shown after file load) -->
           <div x-show="fileLoaded" class="flex flex-col gap-5">
 
@@ -334,6 +343,7 @@ const faq = [
       quality:       82,
       pngReduce:     false,
       pngColors:     256,
+      pngWarning:    '',
       maxDim:        '',
       origSize:      '',
       outSize:       '',
@@ -373,6 +383,7 @@ const faq = [
         this._file  = file;
         this._srcSize = file.size;
         this._isSvg = isSvg;
+        this.pngWarning = '';
         this.fileInfo = `${file.name} · ${fmtBytes(file.size)}`;
 
         if (isSvg) {
@@ -401,11 +412,30 @@ const faq = [
               this.fileLoaded = true;
               this.previewSrc = e.target!.result as string;
               this._setStatus('Loaded — adjust settings and click Preview & Download.', 'info');
+              if (ext === 'png') this._inspectPng(file);
             };
             img.src = e.target!.result as string;
           };
           reader.readAsDataURL(file);
         }
+      },
+
+      // Inspect a loaded PNG's header to warn up front when a lossless
+      // (truecolor) re-encode would enlarge it — e.g. it's already indexed.
+      async _inspectPng(file: File) {
+        try {
+          const { parsePngInfo, wouldLosslessReencodeGrow } = await import('@/lib/png-info');
+          const bytes = new Uint8Array(await file.arrayBuffer());
+          const info = parsePngInfo(bytes);
+          if (!info) return;
+          if (wouldLosslessReencodeGrow(info)) {
+            const kind = info.isPalette
+              ? `already a ${info.paletteColors ?? '≤256'}-colour palette PNG`
+              : info.bitDepth < 8 ? `already a ${info.bitDepth}-bit PNG`
+              : 'a grayscale PNG';
+            this.pngWarning = `This is ${kind}. A lossless PNG re-encode will likely be larger — enable “Reduce colors”, convert to WebP, or keep the original.`;
+          }
+        } catch { /* inspection is best-effort — never block the tool */ }
       },
 
       async compress() {
@@ -483,15 +513,37 @@ const faq = [
             if (!blob) throw new Error('Encoding failed.');
 
             this.progress = 85;
-            this.outSize  = fmtBytes(blob.size);
-            this.outDims  = `${ow}×${oh}`;
-            this._setSaving(this._srcSize, blob.size);
 
-            const ext2 = this.format === 'jpeg' ? 'jpg' : this.format;
-            this.previewSrc = URL.createObjectURL(blob);
-            this._download(blob, baseName(this._file.name) + `_opt.${ext2}`);
-            this.progress = 100;
-            this._setStatus(`✓ Downloaded (${fmtBytes(blob.size)})`, 'ok');
+            // Keep-smaller guard: re-encoding can enlarge an already-optimised
+            // file (esp. lossless PNG→PNG). If the output isn't smaller AND we
+            // stayed in the same format at full resolution, hand back the
+            // untouched original rather than a bigger "compressed" file.
+            const sameFormat = extOf(this._file.name) === (this.format === 'jpeg' ? 'jpg' : this.format)
+                            || (this.format === 'jpeg' && extOf(this._file.name) === 'jpeg');
+            const resized = ow !== sw || oh !== sh;
+            let ext2 = this.format === 'jpeg' ? 'jpg' : this.format;
+            let downloadName = baseName(this._file.name) + `_opt.${ext2}`;
+
+            if (blob.size >= this._srcSize && sameFormat && !resized) {
+              blob = this._file;
+              ext2 = extOf(this._file.name);
+              downloadName = this._file.name;
+              this.outSize = fmtBytes(blob.size);
+              this.outDims = `${ow}×${oh}`;
+              this._setSaving(this._srcSize, blob.size);
+              this.previewSrc = URL.createObjectURL(blob);
+              this._download(blob, downloadName);
+              this.progress = 100;
+              this._setStatus('✓ Original was already optimal — kept as-is.', 'ok');
+            } else {
+              this.outSize  = fmtBytes(blob.size);
+              this.outDims  = `${ow}×${oh}`;
+              this._setSaving(this._srcSize, blob.size);
+              this.previewSrc = URL.createObjectURL(blob);
+              this._download(blob, downloadName);
+              this.progress = 100;
+              this._setStatus(`✓ Downloaded (${fmtBytes(blob.size)})`, 'ok');
+            }
           }
         } catch (e: any) {
           this._setStatus(`✕ ${e.message}`, 'err');
