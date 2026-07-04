@@ -20,6 +20,7 @@
     "wrangler": "^4.86.0"
   },
   "dependencies": {
+    "@astrojs/sitemap": "^3.7.3",
     "@tailwindcss/vite": "^4.3.0",
     "alpinejs": "^3.14.1",
     "astro": "^7.0.6",

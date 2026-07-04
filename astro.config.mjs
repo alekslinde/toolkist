@@ -1,4 +1,5 @@
 import { defineConfig } from 'astro/config';
+import sitemap from '@astrojs/sitemap';
 import tailwindcss from '@tailwindcss/vite';
 import { rm } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
@@ -54,7 +55,18 @@ export default defineConfig({
   redirects: {
     '/tools/token-defluffer': '/',
   },
-  integrations: [excludeDevOnlyPages],
+  integrations: [
+    // Emits sitemap-index.xml + sitemap-0.xml at build from all static routes.
+    // Excludes: the dev-only /tools/benchmark page (deleted post-build by
+    // excludeDevOnlyPages, so it would 404) and unbuilt placeholder tools served
+    // by the [slug] fallback (thin content — keep them out of the index).
+    sitemap({
+      filter: (page) =>
+        !page.includes('/tools/benchmark') &&
+        !page.includes('/tools/svg-validator'),
+    }),
+    excludeDevOnlyPages,
+  ],
   vite: {
     plugins: [tailwindcss(), wawoff2BindingFix],
     optimizeDeps: {
