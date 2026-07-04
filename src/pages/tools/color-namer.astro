@@ -231,20 +231,35 @@ const faq = [
   /* ── Pre-compute Lab values for the whole DB ── */
   const DB_LAB: Lab[] = DB.map(([hex]) => rgbToLab(hexToRgb(hex)));
 
-  /* ── Parse any color string → RGB ── */
+  const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+
+  /* ── Parse any color string → RGB ──
+     Accepts hex (#rrggbb / #rgb / bare), rgb()/rgba() and hsl()/hsla().
+     Commas may be replaced by spaces; the % on HSL saturation/lightness is
+     optional. Out-of-range channels are clamped rather than rejected. */
   function parseColor(raw: string): RGB | null {
-    let s = raw.trim().toLowerCase().replace(/\s+/g, '');
+    // Normalise: lowercase, trim, collapse commas+whitespace to single spaces.
+    const s = raw.trim().toLowerCase().replace(/[\s,]+/g, ' ');
 
-    // rgb(r,g,b) or rgba(r,g,b,a)
-    const rgbM = s.match(/^rgba?\((\d+),(\d+),(\d+)/);
-    if (rgbM) return [+rgbM[1], +rgbM[2], +rgbM[3]];
+    // rgb(r g b) / rgba(r g b a)
+    const rgbM = s.match(/^rgba?\(\s*(\d+(?:\.\d+)?) (\d+(?:\.\d+)?) (\d+(?:\.\d+)?)/);
+    if (rgbM) {
+      return [
+        clamp(Math.round(+rgbM[1]), 0, 255),
+        clamp(Math.round(+rgbM[2]), 0, 255),
+        clamp(Math.round(+rgbM[3]), 0, 255),
+      ];
+    }
 
-    // hsl(h,s%,l%) or hsla(...)
-    const hslM = s.match(/^hsla?\(([\d.]+),([\d.]+)%,([\d.]+)%/);
-    if (hslM) return hslToRgb(+hslM[1], +hslM[2], +hslM[3]);
+    // hsl(h s% l%) / hsla(...) — % optional on s and l
+    const hslM = s.match(/^hsla?\(\s*([\d.]+)%? ([\d.]+)%? ([\d.]+)%?/);
+    if (hslM) {
+      const h = ((+hslM[1] % 360) + 360) % 360;
+      return hslToRgb(h, clamp(+hslM[2], 0, 100), clamp(+hslM[3], 0, 100));
+    }
 
-    // hex
-    let hex = s.replace(/^#/, '');
+    // hex (with or without #, 3- or 6-digit)
+    let hex = s.replace(/\s+/g, '').replace(/^#/, '');
     if (/^[0-9a-f]{3}$/.test(hex)) hex = hex.split('').map(c => c + c).join('');
     if (/^[0-9a-f]{6}$/.test(hex)) return hexToRgb(hex);
 
@@ -334,36 +349,7 @@ const faq = [
     });
   }
 
-  /* ── Input handling ── */
-  const picker = document.getElementById('colorPicker') as HTMLInputElement;
-  const textInput = document.getElementById('colorInput') as HTMLInputElement;
-  const parseError = document.getElementById('parseError')!;
-
-  function applyText(val: string) {
-    const rgb = parseColor(val);
-    if (!rgb) {
-      parseError.textContent = 'Unrecognised format — try #rrggbb, rgb(r,g,b) or hsl(h,s%,l%)';
-      parseError.classList.remove('hidden');
-      return;
-    }
-    parseError.classList.add('hidden');
-    // Sync picker (only accepts 6-digit hex)
-    picker.value = rgbToHex(rgb);
-    render(rgb);
-  }
-
-  picker.addEventListener('input', () => {
-    const rgb = parseColor(picker.value)!;
-    textInput.value = picker.value;
-    parseError.classList.add('hidden');
-    render(rgb);
-  });
-
-  let debounceTimer: ReturnType<typeof setTimeout>;
-  textInput.addEventListener('input', () => { clearTimeout(debounceTimer); debounceTimer = setTimeout(() => applyText(textInput.value), 120); });
-  textInput.addEventListener('change', () => applyText(textInput.value));
-
-  /* ── Copy buttons ── */
+  /* ── Copy-button flash helper ── */
   function flashBtn(id: string, label: string) {
     const btn = document.getElementById(id)!;
     const orig = btn.textContent;
@@ -372,15 +358,52 @@ const faq = [
     setTimeout(() => { btn.textContent = orig; btn.classList.remove('border-purple-300', 'text-purple-700'); }, 1400);
   }
 
-  document.getElementById('copyNameBtn')!.addEventListener('click', () => {
-    const name = document.getElementById('resultName')!.textContent || '';
-    navigator.clipboard.writeText(name).then(() => flashBtn('copyNameBtn', 'Copied!'));
-  });
+  /* ── Wire the DOM + run the first render ──
+     Runs on astro:page-load so it fires on the initial load AND on every
+     View Transitions navigation into this page (scripts run once, so without
+     this the alternatives never populate when arriving via in-app nav). */
+  function setup() {
+    const picker = document.getElementById('colorPicker') as HTMLInputElement | null;
+    if (!picker) return; // not on this page
+    const textInput = document.getElementById('colorInput') as HTMLInputElement;
+    const parseError = document.getElementById('parseError')!;
 
-  document.getElementById('copyHexBtn')!.addEventListener('click', () => {
-    navigator.clipboard.writeText(rgbToHex(currentRgb)).then(() => flashBtn('copyHexBtn', 'Copied!'));
-  });
+    function applyText(val: string) {
+      const rgb = parseColor(val);
+      if (!rgb) {
+        parseError.textContent = 'Unrecognised format — try #rrggbb, rgb(r, g, b) or hsl(h, s%, l%)';
+        parseError.classList.remove('hidden');
+        return;
+      }
+      parseError.classList.add('hidden');
+      // Sync picker (only accepts 6-digit hex)
+      picker!.value = rgbToHex(rgb);
+      render(rgb);
+    }
 
-  /* ── Initial render ── */
-  render(currentRgb);
+    picker.addEventListener('input', () => {
+      const rgb = parseColor(picker.value)!;
+      textInput.value = picker.value;
+      parseError.classList.add('hidden');
+      render(rgb);
+    });
+
+    let debounceTimer: ReturnType<typeof setTimeout>;
+    textInput.addEventListener('input', () => { clearTimeout(debounceTimer); debounceTimer = setTimeout(() => applyText(textInput.value), 120); });
+    textInput.addEventListener('change', () => applyText(textInput.value));
+
+    document.getElementById('copyNameBtn')!.addEventListener('click', () => {
+      const name = document.getElementById('resultName')!.textContent || '';
+      navigator.clipboard.writeText(name).then(() => flashBtn('copyNameBtn', 'Copied!'));
+    });
+
+    document.getElementById('copyHexBtn')!.addEventListener('click', () => {
+      navigator.clipboard.writeText(rgbToHex(currentRgb)).then(() => flashBtn('copyHexBtn', 'Copied!'));
+    });
+
+    // Render from whatever is currently in the input (falls back to the default).
+    applyText(textInput.value);
+  }
+
+  document.addEventListener('astro:page-load', setup);
 </script>
