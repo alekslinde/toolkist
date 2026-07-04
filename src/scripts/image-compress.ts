@@ -24,6 +24,9 @@ export function imageCompressor() {
     fileInfo:      '',
     format:        'jpeg',
     quality:       82,
+    pngReduce:     false,
+    pngColors:     256,
+    pngWarning:    '',
     maxDim:        '',
     origSize:      '',
     outSize:       '',
@@ -63,6 +66,7 @@ export function imageCompressor() {
       this._file  = file;
       this._srcSize = file.size;
       this._isSvg = isSvg;
+      this.pngWarning = '';
       this.fileInfo = `${file.name} · ${fmtBytes(file.size)}`;
 
       if (isSvg) {
@@ -91,11 +95,30 @@ export function imageCompressor() {
             this.fileLoaded = true;
             this.previewSrc = e.target!.result as string;
             this._setStatus('Loaded — adjust settings and click Preview & Download.', 'info');
+            if (ext === 'png') this._inspectPng(file);
           };
           img.src = e.target!.result as string;
         };
         reader.readAsDataURL(file);
       }
+    },
+
+    // Inspect a loaded PNG's header to warn up front when a lossless
+    // (truecolor) re-encode would enlarge it — e.g. it's already indexed.
+    async _inspectPng(file: File) {
+      try {
+        const { parsePngInfo, wouldLosslessReencodeGrow } = await import('@/lib/png-info');
+        const bytes = new Uint8Array(await file.arrayBuffer());
+        const info = parsePngInfo(bytes);
+        if (!info) return;
+        if (wouldLosslessReencodeGrow(info)) {
+          const kind = info.isPalette
+            ? `already a ${info.paletteColors ?? '≤256'}-colour palette PNG`
+            : info.bitDepth < 8 ? `already a ${info.bitDepth}-bit PNG`
+            : 'a grayscale PNG';
+          this.pngWarning = `This is ${kind}. A lossless PNG re-encode will likely be larger — enable “Reduce colors”, convert to WebP, or keep the original.`;
+        }
+      } catch { /* inspection is best-effort — never block the tool */ }
     },
 
     async compress() {
@@ -154,24 +177,56 @@ export function imageCompressor() {
           ctx.drawImage(this._img, 0, 0, ow, oh);
           this.progress = 60;
 
-          const mime = this.format === 'jpeg' ? 'image/jpeg'
-                     : this.format === 'webp' ? 'image/webp'
-                     : 'image/png';
-          const blob = await new Promise<Blob | null>((res) =>
-            canvas.toBlob(res, mime, this.format === 'png' ? undefined : q)
-          );
+          let blob: Blob | null;
+          if (this.format === 'png' && this.pngReduce) {
+            // Lossy palette PNG via UPNG (reduces to N colors).
+            const { default: UPNG } = await import('upng-js');
+            const rgba = ctx.getImageData(0, 0, ow, oh).data;
+            const colors = Math.min(256, Math.max(2, parseInt(String(this.pngColors)) || 256));
+            const png = UPNG.encode([rgba.buffer], ow, oh, colors);
+            blob = new Blob([png], { type: 'image/png' });
+          } else {
+            const mime = this.format === 'jpeg' ? 'image/jpeg'
+                       : this.format === 'webp' ? 'image/webp'
+                       : 'image/png';
+            blob = await new Promise<Blob | null>((res) =>
+              canvas.toBlob(res, mime, this.format === 'png' ? undefined : q)
+            );
+          }
           if (!blob) throw new Error('Encoding failed.');
 
           this.progress = 85;
-          this.outSize  = fmtBytes(blob.size);
-          this.outDims  = `${ow}×${oh}`;
-          this._setSaving(this._srcSize, blob.size);
 
-          const ext2 = this.format === 'jpeg' ? 'jpg' : this.format;
-          this.previewSrc = URL.createObjectURL(blob);
-          this._download(blob, baseName(this._file.name) + `_opt.${ext2}`);
-          this.progress = 100;
-          this._setStatus(`✓ Downloaded (${fmtBytes(blob.size)})`, 'ok');
+          // Keep-smaller guard: re-encoding can enlarge an already-optimised
+          // file (esp. lossless PNG→PNG). If the output isn't smaller AND we
+          // stayed in the same format at full resolution, hand back the
+          // untouched original rather than a bigger "compressed" file.
+          const sameFormat = extOf(this._file.name) === (this.format === 'jpeg' ? 'jpg' : this.format)
+                          || (this.format === 'jpeg' && extOf(this._file.name) === 'jpeg');
+          const resized = ow !== sw || oh !== sh;
+          let ext2 = this.format === 'jpeg' ? 'jpg' : this.format;
+          let downloadName = baseName(this._file.name) + `_opt.${ext2}`;
+
+          if (blob.size >= this._srcSize && sameFormat && !resized) {
+            blob = this._file;
+            ext2 = extOf(this._file.name);
+            downloadName = this._file.name;
+            this.outSize = fmtBytes(blob.size);
+            this.outDims = `${ow}×${oh}`;
+            this._setSaving(this._srcSize, blob.size);
+            this.previewSrc = URL.createObjectURL(blob);
+            this._download(blob, downloadName);
+            this.progress = 100;
+            this._setStatus('✓ Original was already optimal — kept as-is.', 'ok');
+          } else {
+            this.outSize  = fmtBytes(blob.size);
+            this.outDims  = `${ow}×${oh}`;
+            this._setSaving(this._srcSize, blob.size);
+            this.previewSrc = URL.createObjectURL(blob);
+            this._download(blob, downloadName);
+            this.progress = 100;
+            this._setStatus(`✓ Downloaded (${fmtBytes(blob.size)})`, 'ok');
+          }
         }
       } catch (e: any) {
         this._setStatus(`✕ ${e.message}`, 'err');
