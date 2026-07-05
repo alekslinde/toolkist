@@ -5,19 +5,19 @@ describe('fmtBytes', () => {
   it('formats exact bytes', () => {
     expect(fmtBytes(0)).toBe('0 B');
     expect(fmtBytes(1)).toBe('1 B');
-    expect(fmtBytes(1023)).toBe('1023 B');
+    expect(fmtBytes(999)).toBe('999 B');
   });
 
-  it('formats kilobytes at 1024 boundary', () => {
-    expect(fmtBytes(1024)).toBe('1.0 KB');
-    expect(fmtBytes(1536)).toBe('1.5 KB');
-    expect(fmtBytes(1048575)).toBe('1024.0 KB');
+  it('formats kilobytes at 1000 boundary', () => {
+    expect(fmtBytes(1000)).toBe('1.0 KB');
+    expect(fmtBytes(1500)).toBe('1.5 KB');
+    expect(fmtBytes(999999)).toBe('1000.0 KB');
   });
 
-  it('formats megabytes at 1048576 boundary', () => {
-    expect(fmtBytes(1048576)).toBe('1.00 MB');
-    expect(fmtBytes(2 * 1048576)).toBe('2.00 MB');
-    expect(fmtBytes(1.5 * 1048576)).toBe('1.50 MB');
+  it('formats megabytes at 1000000 boundary, matching OS file size display', () => {
+    expect(fmtBytes(1_000_000)).toBe('1.00 MB');
+    expect(fmtBytes(2_000_000)).toBe('2.00 MB');
+    expect(fmtBytes(1_500_000)).toBe('1.50 MB');
   });
 });
 

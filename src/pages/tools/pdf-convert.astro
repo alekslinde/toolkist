@@ -244,9 +244,9 @@ const faq = [
 
   // ── Shared helpers ─────────────────────────────────────────────
   function fmtBytes(b: number): string {
-    if (b < 1024) return b + ' B';
-    if (b < 1_048_576) return (b / 1024).toFixed(1) + ' KB';
-    return (b / 1_048_576).toFixed(2) + ' MB';
+    if (b < 1000) return b + ' B';
+    if (b < 1_000_000) return (b / 1000).toFixed(1) + ' KB';
+    return (b / 1_000_000).toFixed(2) + ' MB';
   }
   function baseName(n: string): string { return n.replace(/\.[^.]+$/, ''); }
 
