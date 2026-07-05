@@ -95,15 +95,6 @@ export const tools: Tool[] = [
     icon: 'Aa',
   },
   {
-    slug: 'font-pairs',
-    title: 'Font Pairing Explorer',
-    shortTitle: 'Font Tools',
-    description: 'Browse curated Google Fonts pairings with live preview text to find the perfect type combination.',
-    category: 'typography',
-    tags: ['font pairing', 'Google Fonts', 'typography', 'heading', 'body'],
-    icon: 'Aa',
-  },
-  {
     slug: 'wcag-contrast',
     title: 'WCAG Contrast Checker',
     shortTitle: 'Color & WCAG',
