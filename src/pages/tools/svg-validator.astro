@@ -731,7 +731,7 @@ const faq = [
 
     // ── Helpers ───────────────────────────────────────────────────────────────
     function formatBytes(n: number): string {
-      return n < 1024 ? `${n} B` : `${(n / 1024).toFixed(1)} KB`;
+      return n < 1000 ? `${n} B` : `${(n / 1000).toFixed(1)} KB`;
     }
   </script>
 </MainLayout>

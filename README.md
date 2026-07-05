@@ -27,7 +27,6 @@ Live at **[lindetoolbox.com](https://lindetoolbox.com)**
 |---|---|
 | Font Format Converter | Convert between TTF, OTF, WOFF and WOFF2 — download all formats at once |
 | Font Inspector | Inspect OpenType metadata: classification, weight, designer, license, glyph set |
-| Font Pairing Explorer | Browse AI-suggested Google Fonts pairings with live preview |
 | WCAG Contrast Checker | Check WCAG 2.1 AA/AAA contrast ratios with shade suggestions |
 | Color Palette Generator | Generate harmonious palettes from a base color using HSL color theory |
 | CSS Gradient Builder | Build linear and radial CSS gradients with a visual editor |
@@ -77,9 +76,8 @@ npm run preview   # serve dist/ locally
 npm run deploy    # build + deploy to Cloudflare
 ```
 
-The Cloudflare Worker (`worker/counter.js`) handles two endpoints:
+The Cloudflare Worker (`worker/counter.js`) handles:
 
-- `POST /fontpair` — AI font pairing suggestions (requires `ANTHROPIC_KEY` secret)
 - `GET/POST /u?k=<key>` — usage counters via Durable Objects
 
 ---

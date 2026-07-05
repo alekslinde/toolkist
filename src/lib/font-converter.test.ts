@@ -136,8 +136,8 @@ describe('translateParseError', () => {
 
 describe('fmtBytes', () => {
   it('formats bytes', () => { expect(fmtBytes(512)).toBe('512 B'); });
-  it('formats kilobytes', () => { expect(fmtBytes(2048)).toBe('2.0 KB'); });
-  it('formats megabytes', () => { expect(fmtBytes(2 * 1024 * 1024)).toBe('2.00 MB'); });
+  it('formats kilobytes', () => { expect(fmtBytes(2000)).toBe('2.0 KB'); });
+  it('formats megabytes', () => { expect(fmtBytes(2_000_000)).toBe('2.00 MB'); });
 });
 
 describe('baseName', () => {

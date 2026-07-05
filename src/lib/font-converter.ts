@@ -244,9 +244,9 @@ export function buildEOT(sfntBuffer: ArrayBuffer): ArrayBuffer {
 
 /* ── Misc helpers ── */
 export function fmtBytes(b: number): string {
-  if (b < 1024) return b + ' B';
-  if (b < 1048576) return (b / 1024).toFixed(1) + ' KB';
-  return (b / 1048576).toFixed(2) + ' MB';
+  if (b < 1000) return b + ' B';
+  if (b < 1_000_000) return (b / 1000).toFixed(1) + ' KB';
+  return (b / 1_000_000).toFixed(2) + ' MB';
 }
 export function baseName(name: string): string { return name.replace(/\.[^.]+$/, ''); }
 export function extOf(name: string): string { return (name.split('.').pop() ?? '').toLowerCase(); }

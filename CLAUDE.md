@@ -38,7 +38,7 @@ src/
     utils.ts              — Shared utilities
     code-minifier.ts, font-converter.ts, scss-converter.ts, brand-extract.ts
 worker/
-  counter.js              — Cloudflare Worker: serves static assets + /fontpair + /u endpoints (Durable Objects)
+  counter.js              — Cloudflare Worker: serves static assets + /u endpoint (Durable Objects)
 ```
 
 ### Code reuse
@@ -70,7 +70,6 @@ Source of truth is `src/data/tools.ts` — keep this table in sync with it.
 | Slug | Tool |
 |---|---|
 | `font-converter` | Font Format Converter (opentype.js / wawoff2) |
-| `font-pairs` | Font Pairing Explorer (calls `/fontpair` worker endpoint) |
 | `wcag-contrast` | WCAG Contrast Checker |
 | `color-palette` | Color Palette Generator |
 | `color-gradient` | CSS Gradient Builder |
@@ -103,13 +102,7 @@ npm run deploy     # astro build + wrangler deploy to Cloudflare
 ```
 
 `wrangler deploy` publishes `dist/` via `worker/counter.js`. The Worker serves static assets and handles:
-- `POST /fontpair` — AI font pairing (requires `ANTHROPIC_KEY` secret in Cloudflare dashboard)
 - `GET/POST /u?k=<key>` — usage counter (Durable Objects)
-
-## Cloudflare Worker secrets
-
-Set in Cloudflare dashboard → Workers → lindetoolbox → Settings → Variables:
-- `ANTHROPIC_KEY` — Anthropic API key for font pairing AI
 
 ## Design system
 
@@ -126,7 +119,6 @@ This project uses **Tailwind CSS**. Follow the utility class patterns already us
 - **No server-side rendering.** Astro is configured for static output. All tool logic runs in the browser via `<script>` blocks.
 - **Alpine.js for some tools.** Where Alpine reactivity is used, the `MainLayout` loads it globally. Most tools use vanilla TypeScript in `<script>` blocks.
 - **CORS proxies (Brand Assets).** Uses `api.allorigins.win` and `api.codetabs.com`.
-- **Font pairing requires the Worker.** `font-pairs.astro` calls `POST /fontpair` — this only works when deployed (or when a local tunnel is set up). It will 404 during `npm run preview`.
 
 ## Off limits
 
