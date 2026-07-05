@@ -507,7 +507,7 @@ const levels = [
 
       setProgress(90);
       const outName = baseName(pdfFile.name) + '_' + levelKey + '.pdf';
-      const blob = new Blob([compressed], { type: 'application/pdf' });
+      const blob = new Blob([compressed.slice()], { type: 'application/pdf' });
       setProgress(100);
 
       document.getElementById('pdfEstSize')!.textContent = fmtBytes(compressed.length);
