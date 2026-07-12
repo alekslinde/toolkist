@@ -10,12 +10,13 @@ const tips = [
   { heading: 'Export from XD',  body: 'File → Export → All Artboards → SVG format. Each artboard becomes one .svg file.' },
   { heading: 'Drag to reorder', body: 'Figma imports SVGs alphabetically — this tool numbers files to control the order.' },
   { heading: 'Import to Figma', body: 'Unzip the package, then drag all SVG files onto a Figma canvas at once.' },
-  { heading: 'Naming tip',      body: 'Files are numbered 01_, 02_, … so Figma\'s alphabetical sort matches your chosen screen order.' },
+  { heading: 'Then clean up',   body: 'Once imported, run the free XDtox Figma plugin to strip the wrapper groups and clip masks Figma adds on import.' },
 ];
 
 const faq = [
   { question: 'Why does the order matter in Figma?', answer: 'Figma imports multiple dragged files in alphabetical order. This tool prefixes each SVG with a zero-padded number so you control the order.' },
   { question: 'Does this convert XD to Figma natively?', answer: 'No — it packages your XD-exported SVG artboards into a numbered ZIP so Figma can import them in the correct sequence. Complex XD-specific styles may not transfer perfectly.' },
+  { question: 'Why does cleanup happen in Figma rather than here?', answer: 'The wrapper groups and clip masks people want gone ("Clip path group", "clip-{name}") do not exist in the XD SVG file — Figma creates them when it imports the SVG and encounters clip-path attributes. They only exist once the file is inside Figma, so they can only be removed from inside Figma. That is what the XDtox plugin does.' },
   { question: 'Are my files uploaded?', answer: 'No. Everything runs locally in your browser using the File API and JSZip. Nothing is sent to any server.' },
   { question: 'What file types are accepted?', answer: 'Only .svg files. Export your artboards from Adobe XD as SVG before using this tool.' },
 ];
@@ -68,6 +69,16 @@ const faq = [
           <div id="xdImportHint" hidden
             class="mb-4 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
             <strong>Next step:</strong> Unzip <code class="font-mono text-xs">xd-screens.zip</code> and drag all SVG files onto a Figma canvas at once. Figma imports alphabetically, so the numbered prefix preserves your order.
+            <span class="mt-1 block">
+              Then run&nbsp;
+              <a
+                href="https://www.figma.com/community/plugin/1648196064868022957/xdtox"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="font-medium underline decoration-emerald-300 underline-offset-2 hover:text-emerald-800"
+              >XDtox</a>
+              &nbsp;in Figma to strip the wrapper groups and clip masks the import adds.
+            </span>
           </div>
 
           <!-- Progress -->
@@ -95,18 +106,40 @@ const faq = [
 
     </div>
 
-    <!-- Continue migration in Figma -->
+    <!-- Two-step migration workflow -->
     <div class="mt-8 rounded-md border border-slate-200 bg-white p-5 shadow-sm">
-      <h2 class="text-sm font-medium text-slate-800">Finalise your migration in Figma</h2>
+      <h2 class="text-sm font-medium text-slate-800">The full XD → Figma migration</h2>
       <p class="mt-2 text-sm text-slate-500">
-        This tool strips the outer clip-path, but nested wrapper groups and clip nodes from XD's SVG export still carry over on import. Clean those up with the Figma community plugin&nbsp;
-        <a
-          href="https://www.figma.com/community/plugin/1648196064868022957/xdtox"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="font-medium text-purple-600 underline decoration-purple-200 underline-offset-2 hover:text-purple-700"
-        >XDtox</a>.
+        Migrating cleanly takes two passes, because the two problems live on opposite sides of the import.
       </p>
+
+      <ol class="mt-4 flex flex-col gap-4">
+        <li class="flex gap-3">
+          <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-purple-100 text-xs font-semibold text-purple-700">1</span>
+          <div>
+            <p class="text-sm font-medium text-slate-700">Order your screens — here</p>
+            <p class="mt-0.5 text-sm text-slate-500">
+              Figma imports dragged SVGs alphabetically, which rarely matches your screen flow. Drag to reorder above, and this tool numbers each file so the import order is the order you chose.
+            </p>
+          </div>
+        </li>
+        <li class="flex gap-3">
+          <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-purple-100 text-xs font-semibold text-purple-700">2</span>
+          <div>
+            <p class="text-sm font-medium text-slate-700">Clean up the layers — in Figma</p>
+            <p class="mt-0.5 text-sm text-slate-500">
+              On import, Figma wraps every artboard in a <span class="font-mono text-xs">Clip path group</span> plus a <span class="font-mono text-xs">clip-{'{'}name{'}'}</span> mask node, and turns the artboard background into a loose vector. These are created <em>by Figma, during import</em> — they aren't in the SVG file, so they can only be removed once the file is in Figma. The free community plugin&nbsp;
+              <a
+                href="https://www.figma.com/community/plugin/1648196064868022957/xdtox"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="font-medium text-purple-600 underline decoration-purple-200 underline-offset-2 hover:text-purple-700"
+              >XDtox</a>
+              &nbsp;unwraps the groups, deletes the masks, and promotes the background to a real frame fill — across every frame in one click.
+            </p>
+          </div>
+        </li>
+      </ol>
     </div>
 
     <!-- SEO Sandwich -->
@@ -114,7 +147,7 @@ const faq = [
       <div class="mx-auto max-w-2xl">
         <h2 class="mb-4 text-lg font-semibold text-slate-900">About XD → Figma Packager</h2>
         <p class="mb-8 text-sm leading-relaxed text-slate-600">
-          Adobe XD exports artboards as individual SVG files. When you drag multiple SVGs into Figma, it imports them in alphabetical order — which may not match your intended screen flow. This tool lets you drag-to-reorder your screens, then downloads a ZIP where each file is prefixed with a zero-padded number (01_, 02_, …) so Figma's alphabetical sort respects your chosen order.
+          Adobe XD exports artboards as individual SVG files. When you drag multiple SVGs into Figma, it imports them in alphabetical order — which may not match your intended screen flow. This tool lets you drag-to-reorder your screens, then downloads a ZIP where each file is prefixed with a zero-padded number (01_, 02_, …) so Figma's alphabetical sort respects your chosen order. Once the screens are in Figma, the companion XDtox plugin clears out the wrapper groups and clip masks Figma adds during import — together the two cover a clean migration end to end.
         </p>
         <FAQAccordion items={faq} />
         <div class="mt-10 text-xs leading-relaxed text-slate-400">
