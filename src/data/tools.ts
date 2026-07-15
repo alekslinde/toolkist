@@ -84,6 +84,15 @@ export const tools: Tool[] = [
     tags: ['diff', 'compare', 'code review', 'text', 'PDF'],
     icon: 'DIFF',
   },
+  {
+    slug: 'metadata-cleaner',
+    title: 'Metadata Cleaner',
+    shortTitle: 'Metadata Cleaner',
+    description: 'Strip EXIF, GPS, XMP and document metadata from JPG, PNG, WebP and PDF files. See exactly what was found and removed. No uploads.',
+    category: 'images',
+    tags: ['metadata', 'EXIF', 'GPS', 'privacy', 'strip', 'scrub', 'XMP', 'PDF'],
+    icon: 'META',
+  },
   // ── Typography & Color ────────────────────────────────────────────────────
   {
     slug: 'font-converter',

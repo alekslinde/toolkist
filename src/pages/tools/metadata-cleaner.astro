@@ -1,0 +1,356 @@
+---
+import MainLayout from '@/layouts/MainLayout.astro';
+import Breadcrumbs from '@/components/Breadcrumbs.astro';
+import QuickTips from '@/components/QuickTips.astro';
+import HelpfulButton from '@/components/HelpfulButton.astro';
+import ToolSEO from '@/components/ToolSEO.astro';
+import FileDropZone from '@/components/FileDropZone.astro';
+
+const tips = [
+  { heading: 'GPS in photos', body: 'Phone photos often embed exact GPS coordinates in EXIF. Sharing them can reveal your home or a subject’s location.' },
+  { heading: 'What survives', body: 'Only metadata is removed — the image pixels and PDF pages are left byte-for-byte intact. No quality loss, no re-encode.' },
+  { heading: 'PDF authorship', body: 'PDFs carry author, producer and software fields plus creation/modification dates. This tool clears them all.' },
+  { heading: 'Batch it', body: 'Drop a whole folder of photos at once. Each file is scanned and cleaned locally; download them individually or as a ZIP.' },
+];
+
+const cheatSheet = [
+  { label: 'JPG / JPEG', value: 'EXIF · GPS · XMP · IPTC' },
+  { label: 'PNG',        value: 'tEXt · iTXt · eXIf · tIME' },
+  { label: 'WebP',       value: 'EXIF · XMP chunks' },
+  { label: 'PDF',        value: 'Author · dates · XMP' },
+];
+
+const faq = [
+  { question: 'Are my files uploaded?', answer: 'No. Detection and stripping run entirely in your browser — image byte-surgery in plain JavaScript and PDF handling via pdf-lib. Nothing is ever sent to a server.' },
+  { question: 'Which formats are supported?', answer: 'JPEG, PNG, WebP and PDF. Video (MP4/MOV) metadata cannot be reliably rewritten in the browser without a large decoder, so it is not yet supported.' },
+  { question: 'Will stripping metadata reduce image quality?', answer: 'No. Metadata lives in separate segments/chunks from the image data. Removing it rewrites the container only — the compressed pixels are copied verbatim, so quality is identical.' },
+  { question: 'What metadata is removed?', answer: 'For images: EXIF (including GPS and camera info), XMP, IPTC/Photoshop blocks, and text/time chunks. For PDFs: title, author, subject, keywords, producer, creator, creation and modification dates, and the XMP metadata stream.' },
+  { question: 'Why does a file show “no metadata found”?', answer: 'Many files exported by web tools are already stripped. If nothing privacy-relevant is present, the file is left untouched and marked clean.' },
+];
+---
+
+<MainLayout
+  title="Metadata Cleaner — Remove EXIF, GPS & PDF Metadata | Toolbox"
+  description="Strip EXIF, GPS, XMP and document metadata from JPG, PNG, WebP and PDF files in your browser. See what was found and removed. No uploads."
+  alpine={false}
+>
+  <div class="px-8 py-10 lg:px-8 max-w-[1440px] mx-auto">
+
+    <div class="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <div>
+        <Breadcrumbs tool="Metadata Cleaner" category="Images & Documents" />
+        <h1 class="mt-3 text-2xl font-semibold tracking-tight text-slate-900">Metadata Cleaner</h1>
+        <p class="mt-1 text-sm text-slate-500">See and strip EXIF, GPS, XMP and PDF metadata — all in your browser.</p>
+      </div>
+      <HelpfulButton toolKey="metadata-cleaner" />
+    </div>
+
+    <div class="grid grid-cols-1 gap-8 lg:grid-cols-12">
+
+      <div class="lg:col-span-8">
+        <div class="rounded-md border border-slate-200 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+
+          <FileDropZone
+            id="metaDropZone"
+            variant="multi"
+            accept="image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf"
+            prompt="Drop images or PDFs here"
+            hint="JPG · PNG · WebP · PDF accepted · drop several at once"
+            label="Drop files or click to browse"
+          />
+
+          <!-- Summary + batch actions -->
+          <div id="metaSummary" hidden class="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p id="metaSummaryText" class="text-sm text-slate-600"></p>
+            <div class="flex gap-2">
+              <button id="metaCleanAllBtn"
+                class="rounded-md bg-gradient-to-br from-indigo-500 to-purple-500 px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50">
+                Clean &amp; download all
+              </button>
+              <button id="metaClearBtn"
+                class="rounded-md border border-slate-200 px-4 py-2 text-sm text-slate-600 transition-colors hover:border-rose-300 hover:text-rose-600">
+                Clear
+              </button>
+            </div>
+          </div>
+
+          <!-- Per-file result cards -->
+          <div id="metaList" class="mt-6 flex flex-col gap-4"></div>
+
+          <p id="metaStatus" class="mt-4 hidden text-center text-sm"></p>
+
+        </div>
+      </div>
+
+      <aside class="lg:col-span-4">
+        <div class="sticky top-8">
+          <QuickTips tips={tips} cheatSheet={cheatSheet} />
+        </div>
+      </aside>
+
+    </div>
+
+    <ToolSEO
+      heading="About Metadata Cleaner"
+      faq={faq}
+      related={`<a href="/tools/image-convert" class="text-purple-500 hover:underline">Image Converter</a> · <a href="/tools/image-compress" class="text-purple-500 hover:underline">Image Compressor</a> · <a href="/tools/pdf-compress" class="text-purple-500 hover:underline">PDF Compressor</a>`}
+      keywords="remove exif, strip gps from photo, metadata remover, exif cleaner, pdf metadata remover, scrub image metadata, no upload"
+    >
+      <p slot="description" class="mb-8 text-sm leading-relaxed text-slate-600">Images and PDFs quietly carry metadata far beyond the picture itself: GPS coordinates, camera make and model, the software that edited them, and precise timestamps. Before you share a file publicly, this tool shows you exactly what personal data it contains — grouped by location, device, timestamps and software — then removes it and hands back a clean copy. Everything happens in your browser: image metadata is stripped with byte-level segment surgery that leaves the pixels untouched, and PDF metadata is cleared via pdf-lib. Nothing is uploaded, and the cleaned file is identical in quality to the original.</p>
+    </ToolSEO>
+
+  </div>
+</MainLayout>
+
+<script>
+  import { wireMultiDropZone } from '@/lib/file-dropzone';
+  import { fmtBytes, extOf } from '@/lib/utils';
+  import { processImage, groupByCategory, CATEGORY_META, type MetaField } from '@/lib/metadata';
+  import { PDFDocument } from 'pdf-lib';
+  import JSZip from 'jszip';
+
+  interface Entry {
+    id: string;
+    file: File;
+    fields: MetaField[];
+    cleaned: Uint8Array | null; // null until built / when unsupported
+    changed: boolean;
+    kind: 'image' | 'pdf' | 'unsupported';
+    outName: string;
+    outType: string;
+    error?: string;
+  }
+
+  const entries: Entry[] = [];
+  let counter = 0;
+
+  const listEl = () => document.getElementById('metaList')!;
+  const summaryEl = () => document.getElementById('metaSummary')!;
+
+  function showStatus(msg: string, type: 'ok' | 'err' | 'info') {
+    const el = document.getElementById('metaStatus')!;
+    el.textContent = msg;
+    el.className =
+      type === 'ok' ? 'mt-4 text-center text-sm text-emerald-600'
+      : type === 'err' ? 'mt-4 text-center text-sm text-rose-500'
+      : 'mt-4 text-center text-sm text-slate-500';
+    el.classList.remove('hidden');
+  }
+  function hideStatus() { document.getElementById('metaStatus')!.classList.add('hidden'); }
+
+  function baseName(name: string): string { return name.replace(/\.[^.]+$/, ''); }
+  function esc(s: string): string {
+    return s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
+  }
+
+  // ── PDF metadata detection + stripping ──────────────────────────────────────
+  async function processPdf(file: File): Promise<{ fields: MetaField[]; cleaned: Uint8Array; changed: boolean }> {
+    const buf = new Uint8Array(await file.arrayBuffer());
+    const doc = await PDFDocument.load(buf, { updateMetadata: false });
+    const fields: MetaField[] = [];
+
+    const push = (label: string, value: string | undefined | null, category: MetaField['category']) => {
+      if (value && String(value).trim()) fields.push({ category, label, value: String(value), source: 'PDF info' });
+    };
+    try { push('Title', doc.getTitle(), 'other'); } catch {}
+    try { push('Author', doc.getAuthor(), 'other'); } catch {}
+    try { push('Subject', doc.getSubject(), 'other'); } catch {}
+    try { push('Keywords', doc.getKeywords(), 'other'); } catch {}
+    try { push('Producer', doc.getProducer(), 'software'); } catch {}
+    try { push('Creator', doc.getCreator(), 'software'); } catch {}
+    try { const d = doc.getCreationDate(); if (d) push('Creation date', d.toISOString(), 'timestamp'); } catch {}
+    try { const d = doc.getModificationDate(); if (d) push('Modification date', d.toISOString(), 'timestamp'); } catch {}
+
+    // XMP metadata stream (pdf-lib doesn't parse it; detect its presence).
+    const hasXmp = /\/Type\s*\/Metadata|<x:xmpmeta/.test(new TextDecoder('latin1').decode(buf.subarray(0, Math.min(buf.length, 200_000))));
+    if (hasXmp) fields.push({ category: 'other', label: 'XMP metadata stream', value: null, source: 'PDF' });
+
+    const changed = fields.length > 0;
+    if (!changed) return { fields, cleaned: buf, changed: false };
+
+    // Clear document info dictionary.
+    doc.setTitle(''); doc.setAuthor(''); doc.setSubject('');
+    doc.setKeywords([]); doc.setProducer(''); doc.setCreator('');
+    // Neutralise dates to the epoch (pdf-lib always writes some date value).
+    const epoch = new Date(0);
+    doc.setCreationDate(epoch); doc.setModificationDate(epoch);
+
+    const out = await doc.save({ useObjectStreams: false });
+    return { fields, cleaned: out, changed: true };
+  }
+
+  async function addFile(file: File): Promise<Entry> {
+    const id = 'e' + counter++;
+    const ext = extOf(file.name);
+    const entry: Entry = {
+      id, file, fields: [], cleaned: null, changed: false,
+      kind: 'unsupported', outName: baseName(file.name) + '.' + ext, outType: file.type || 'application/octet-stream',
+    };
+
+    try {
+      if (ext === 'pdf' || file.type === 'application/pdf') {
+        entry.kind = 'pdf';
+        const r = await processPdf(file);
+        entry.fields = r.fields; entry.cleaned = r.cleaned; entry.changed = r.changed;
+      } else if (['jpg', 'jpeg', 'png', 'webp'].includes(ext)) {
+        entry.kind = 'image';
+        const bytes = new Uint8Array(await file.arrayBuffer());
+        const r = processImage(bytes);
+        entry.fields = r.fields; entry.cleaned = r.cleaned; entry.changed = r.changed;
+      } else {
+        entry.error = 'Unsupported file type. JPG, PNG, WebP and PDF only.';
+      }
+    } catch (err: any) {
+      entry.error = err?.message || 'Could not read this file.';
+    }
+    return entry;
+  }
+
+  function fieldRow(f: MetaField): string {
+    const val = f.value
+      ? `<span class="font-mono text-slate-700">${esc(f.value.length > 48 ? f.value.slice(0, 48) + '…' : f.value)}</span>`
+      : `<span class="italic text-slate-400">present</span>`;
+    return `
+      <li class="flex items-center justify-between gap-3 py-1">
+        <span class="min-w-0 flex-1 truncate text-slate-600">${esc(f.label)} <span class="ml-1 text-[10px] uppercase tracking-wide text-slate-400">${esc(f.source)}</span></span>
+        <span class="flex shrink-0 items-center gap-2">${val}<span class="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-600">removed</span></span>
+      </li>`;
+  }
+
+  function categoriesHtml(fields: MetaField[]): string {
+    const groups = groupByCategory(fields);
+    return groups.map((g) => {
+      const meta = CATEGORY_META[g.category];
+      return `
+        <div class="rounded-md border border-slate-100 bg-slate-50/60 p-3">
+          <p class="mb-1.5 text-xs font-semibold text-slate-700">${meta.icon} ${meta.title}
+            <span class="ml-1 font-normal text-slate-400">${g.fields.length}</span></p>
+          <ul class="divide-y divide-slate-100 text-xs">${g.fields.map(fieldRow).join('')}</ul>
+        </div>`;
+    }).join('');
+  }
+
+  function cardHtml(e: Entry): string {
+    const badge = e.kind === 'pdf'
+      ? '<span class="inline-flex shrink-0 items-center rounded-md bg-rose-100 px-2.5 py-1 font-mono text-xs font-semibold text-rose-700">PDF</span>'
+      : `<span class="inline-flex shrink-0 items-center rounded-md bg-purple-100 px-2.5 py-1 font-mono text-xs font-semibold text-purple-700">${esc(extOf(e.file.name).toUpperCase())}</span>`;
+
+    let body: string;
+    if (e.error) {
+      body = `<p class="mt-3 text-sm text-rose-500">✕ ${esc(e.error)}</p>`;
+    } else if (!e.changed) {
+      body = `<p class="mt-3 flex items-center gap-2 text-sm text-emerald-600"><span>✓</span> No privacy metadata found — this file is already clean.</p>`;
+    } else {
+      body = `
+        <p class="mt-3 mb-2 text-xs font-medium text-slate-500">${e.fields.length} item${e.fields.length === 1 ? '' : 's'} found and removed:</p>
+        <div class="grid gap-2 sm:grid-cols-2">${categoriesHtml(e.fields)}</div>
+        <button data-dl="${e.id}"
+          class="mt-3 rounded-md border border-slate-200 px-4 py-2 text-sm text-slate-600 transition-colors hover:border-purple-300">
+          ↓ Download cleaned file
+        </button>`;
+    }
+
+    return `
+      <div class="rounded-md border border-slate-200 bg-white p-4" data-entry="${e.id}">
+        <div class="flex items-center gap-3">
+          ${badge}
+          <span class="min-w-0 flex-1">
+            <span class="block truncate text-sm font-medium text-slate-800">${esc(e.file.name)}</span>
+            <span class="block text-xs text-slate-500">${fmtBytes(e.file.size)}</span>
+          </span>
+          <button data-remove="${e.id}" class="shrink-0 rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-400 transition-colors hover:border-rose-300 hover:text-rose-600" aria-label="Remove ${esc(e.file.name)}">✕</button>
+        </div>
+        ${body}
+      </div>`;
+  }
+
+  function render() {
+    listEl().innerHTML = entries.map(cardHtml).join('');
+
+    const cleanable = entries.filter((e) => e.changed).length;
+    const summary = summaryEl();
+    if (entries.length === 0) {
+      summary.hidden = true;
+      return;
+    }
+    summary.hidden = false;
+    const clean = entries.length - cleanable - entries.filter((e) => e.error).length;
+    document.getElementById('metaSummaryText')!.textContent =
+      `${entries.length} file${entries.length === 1 ? '' : 's'} — ${cleanable} with metadata to remove, ${clean} already clean.`;
+    (document.getElementById('metaCleanAllBtn') as HTMLButtonElement).disabled = cleanable === 0;
+  }
+
+  function download(e: Entry) {
+    if (!e.cleaned) return;
+    const blob = new Blob([e.cleaned], { type: e.outType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = e.outName;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  }
+
+  // ── Wiring ──────────────────────────────────────────────────────────────────
+  wireMultiDropZone('metaDropZone', {
+    onFiles: async (files) => {
+      hideStatus();
+      showStatus(`Scanning ${files.length} file${files.length === 1 ? '' : 's'}…`, 'info');
+      for (const file of files) {
+        const entry = await addFile(file);
+        entries.push(entry);
+        render();
+      }
+      hideStatus();
+    },
+  });
+
+  listEl().addEventListener('click', (ev) => {
+    const t = ev.target as HTMLElement;
+    const dl = t.closest('[data-dl]') as HTMLElement | null;
+    const rm = t.closest('[data-remove]') as HTMLElement | null;
+    if (dl) {
+      const e = entries.find((x) => x.id === dl.dataset.dl);
+      if (e) download(e);
+    } else if (rm) {
+      const idx = entries.findIndex((x) => x.id === rm.dataset.remove);
+      if (idx >= 0) { entries.splice(idx, 1); render(); }
+    }
+  });
+
+  document.getElementById('metaClearBtn')!.addEventListener('click', () => {
+    entries.length = 0;
+    render();
+    hideStatus();
+  });
+
+  document.getElementById('metaCleanAllBtn')!.addEventListener('click', async () => {
+    const cleanable = entries.filter((e) => e.changed && e.cleaned);
+    if (cleanable.length === 0) return;
+    if (cleanable.length === 1) { download(cleanable[0]); return; }
+
+    const btn = document.getElementById('metaCleanAllBtn') as HTMLButtonElement;
+    btn.disabled = true;
+    try {
+      showStatus('Packaging cleaned files…', 'info');
+      const zip = new JSZip();
+      const used = new Set<string>();
+      for (const e of cleanable) {
+        let name = e.outName;
+        let n = 1;
+        while (used.has(name)) name = `${baseName(e.outName)}-${n++}.${extOf(e.outName)}`;
+        used.add(name);
+        zip.file(name, e.cleaned!);
+      }
+      const blob = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'cleaned-files.zip';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 10_000);
+      showStatus(`✓ ${cleanable.length} cleaned files downloaded as cleaned-files.zip`, 'ok');
+    } catch (err: any) {
+      showStatus('✕ ' + (err?.message || 'Could not build ZIP.'), 'err');
+    }
+    btn.disabled = false;
+  });
+</script>
