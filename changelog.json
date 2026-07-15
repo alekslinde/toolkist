@@ -1,5 +1,12 @@
 [
   {
+    "version": "7.2",
+    "date": "2026-07-15",
+    "changes": [
+      "New tool: Metadata Cleaner — see and strip EXIF, GPS, XMP and IPTC metadata from JPG, PNG, WebP and PDF files, with a categorised before/after report of exactly what was found and removed. Detects metadata in HEIC and AVIF too and guides you to convert them to strip it. Everything runs in your browser — no uploads"
+    ]
+  },
+  {
     "version": "7.1",
     "date": "2026-06-11",
     "changes": [
