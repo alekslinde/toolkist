@@ -158,6 +158,113 @@ describe('processImage — WebP', () => {
   });
 });
 
+// ── HEIC / AVIF (ISOBMFF, detect-only) ───────────────────────────────────────
+
+/** An ISOBMFF box: [size:4][type:4][payload]. */
+function box(type: string, payload: number[]): number[] {
+  return [...u32be(payload.length + 8), ...ascii(type), ...payload];
+}
+/** infe v2 FullBox naming a 4-char item type with the given item_id. */
+function infe(itemType: string, itemId: number): number[] {
+  // version(1)=2, flags(3)=0, item_id(2), protection(2)=0, item_type(4)
+  return box('infe', [2, 0, 0, 0, ...u16be(itemId), 0, 0, ...ascii(itemType)]);
+}
+
+/** A little-endian TIFF/EXIF block; includes a GPS IFD pointer when withGps. */
+function exifTiff(withGps: boolean): number[] {
+  const entries: number[] = [];
+  const add = (tag: number, type: number, count: number, val: number[]) =>
+    entries.push(...u16leArr(tag), ...u16leArr(type), ...u32leArr(count), ...val);
+  // Make (ASCII "AC\0\0" inline).
+  add(0x010f, 2, 3, [...ascii('AC'), 0, 0]);
+  if (withGps) add(0x8825, 4, 1, u32leArr(0)); // GPS IFD pointer (offset value unused by reader)
+  const nEntries = withGps ? 2 : 1;
+  const tiff = [
+    0x49, 0x49, 0x2a, 0x00,   // 'II' 42
+    ...u32leArr(8),           // IFD0 at offset 8
+    ...u16leArr(nEntries),    // entry count
+    ...entries,
+    ...u32leArr(0),           // next IFD = 0
+  ];
+  // Exif item payload = [tiff_header_offset:4 big-endian][TIFF block].
+  return [...u32be(0), ...tiff];
+}
+
+/**
+ * ftyp + meta(iinf + iloc + Exif payload). `mimeItem` adds an XMP "mime" item;
+ * `exif` embeds a real Exif item located via iloc so the reader can parse it.
+ */
+function buildHeic(brand: string, opts: { exif?: 'gps' | 'nogps'; mimeItem?: boolean } = {}): Uint8Array {
+  const items: Array<{ id: number; type: string }> = [];
+  if (opts.exif) items.push({ id: 1, type: 'Exif' });
+  if (opts.mimeItem) items.push({ id: 2, type: 'mime' });
+
+  const infes = items.map((it) => infe(it.type, it.id)).flat();
+  const iinf = box('iinf', [0, 0, 0, 0, ...u16be(items.length), ...infes]);
+
+  // The Exif payload lives in an mdat after meta; we compute its absolute offset
+  // once the header sizes are known. Build meta twice: first to size it, then to
+  // fill the real offset. Simpler: place mdat first, then meta references it.
+  const exifBytes = opts.exif ? exifTiff(opts.exif === 'gps') : [];
+  const ftyp = box('ftyp', [...ascii(brand), 0, 0, 0, 0, ...ascii(brand)]);
+  const mdat = box('mdat', exifBytes);
+  // Exif payload offset = ftyp + mdat header(8) into the file.
+  const exifOffset = ftyp.length + 8;
+
+  // iloc v1 (big-endian, as all ISOBMFF fields are): offset_size=4, length_size=4,
+  // base_offset_size=0, index_size=0, one item with one extent.
+  const iloc = opts.exif
+    ? box('iloc', [
+        1, 0, 0, 0,                        // version=1, flags
+        0x44,                              // offset_size=4, length_size=4
+        0x00,                              // base_offset_size=0, index_size=0
+        ...u16be(1),                       // item_count=1
+        ...u16be(1),                       // item_id=1
+        ...u16be(0),                       // construction_method=0 (reserved+method)
+        ...u16be(0),                       // data_reference_index
+        ...u16be(1),                       // extent_count=1
+        ...u32be(exifOffset),              // extent_offset
+        ...u32be(exifBytes.length),        // extent_length
+      ])
+    : [];
+
+  const meta = box('meta', [0, 0, 0, 0, ...iinf, ...iloc]);
+  return new Uint8Array([...ftyp, ...mdat, ...meta]);
+}
+
+describe('detectFormat — HEIC/AVIF', () => {
+  it('distinguishes HEIC and AVIF by ftyp brand', () => {
+    expect(detectFormat(buildHeic('heic'))).toBe('heic');
+    expect(detectFormat(buildHeic('mif1'))).toBe('heic');
+    expect(detectFormat(buildHeic('avif'))).toBe('avif');
+  });
+});
+
+describe('processImage — HEIC/AVIF (detect-only)', () => {
+  it('reads the real EXIF and reports GPS only when a GPS IFD is present', () => {
+    const res = processImage(buildHeic('heic', { exif: 'gps', mimeItem: true }));
+    expect(res.format).toBe('heic');
+    expect(res.detectOnly).toBe(true);
+    expect(res.changed).toBe(false);
+    expect(res.fields.some((f) => f.category === 'location')).toBe(true); // GPS present
+    expect(res.fields.some((f) => f.source === 'XMP')).toBe(true);
+  });
+
+  it('does NOT report GPS when the EXIF has no GPS IFD', () => {
+    const res = processImage(buildHeic('heic', { exif: 'nogps' }));
+    expect(res.fields.some((f) => f.category === 'location')).toBe(false);
+    // But it did read device info from the real EXIF (Make = "AC").
+    expect(res.fields.some((f) => f.category === 'device')).toBe(true);
+  });
+
+  it('reports no fields for an ISOBMFF file with no metadata items', () => {
+    const res = processImage(buildHeic('avif'));
+    expect(res.format).toBe('avif');
+    expect(res.detectOnly).toBe(true);
+    expect(res.fields).toHaveLength(0);
+  });
+});
+
 // ── grouping ─────────────────────────────────────────────────────────────────
 
 describe('groupByCategory', () => {

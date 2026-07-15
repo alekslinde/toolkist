@@ -10,19 +10,21 @@ const tips = [
   { heading: 'GPS in photos', body: 'Phone photos often embed exact GPS coordinates in EXIF. Sharing them can reveal your home or a subject’s location.' },
   { heading: 'What survives', body: 'Only metadata is removed — the image pixels and PDF pages are left byte-for-byte intact. No quality loss, no re-encode.' },
   { heading: 'PDF authorship', body: 'PDFs carry author, producer and software fields plus creation/modification dates. This tool clears them all.' },
-  { heading: 'Batch it', body: 'Drop a whole folder of photos at once. Each file is scanned and cleaned locally; download them individually or as a ZIP.' },
+  { heading: 'One file at a time', body: 'Drop an image or PDF to see its metadata, then download the cleaned copy. Drop a new file to replace the current one.' },
 ];
 
 const cheatSheet = [
-  { label: 'JPG / JPEG', value: 'EXIF · GPS · XMP · IPTC' },
-  { label: 'PNG',        value: 'tEXt · iTXt · eXIf · tIME' },
-  { label: 'WebP',       value: 'EXIF · XMP chunks' },
-  { label: 'PDF',        value: 'Author · dates · XMP' },
+  { label: 'JPG / JPEG',  value: 'EXIF · GPS · XMP · IPTC' },
+  { label: 'PNG',         value: 'tEXt · iTXt · eXIf · tIME' },
+  { label: 'WebP',        value: 'EXIF · XMP chunks' },
+  { label: 'PDF',         value: 'Author · dates · XMP' },
+  { label: 'HEIC / AVIF', value: 'detect only · convert to strip' },
 ];
 
 const faq = [
   { question: 'Are my files uploaded?', answer: 'No. Detection and stripping run entirely in your browser — image byte-surgery in plain JavaScript and PDF handling via pdf-lib. Nothing is ever sent to a server.' },
-  { question: 'Which formats are supported?', answer: 'JPEG, PNG, WebP and PDF. Video (MP4/MOV) metadata cannot be reliably rewritten in the browser without a large decoder, so it is not yet supported.' },
+  { question: 'Which formats are supported?', answer: 'JPEG, PNG, WebP and PDF are stripped in place. HEIC and AVIF (the ISOBMFF container used by iPhone photos) are detect-only: the tool shows what metadata they contain but cannot safely rewrite them — convert them to JPG or PNG with the Image Converter to remove it. Video (MP4/MOV) metadata cannot be reliably rewritten in the browser without a large decoder, so it is not yet supported.' },
+  { question: 'How do I remove EXIF/GPS from an iPhone HEIC photo?', answer: 'Drop the HEIC here to see exactly what it contains (including whether GPS is present), then convert it to JPG or PNG using the Image Converter. The re-encode discards all EXIF, GPS and XMP metadata, and you can drop the result back here to confirm it is clean.' },
   { question: 'Will stripping metadata reduce image quality?', answer: 'No. Metadata lives in separate segments/chunks from the image data. Removing it rewrites the container only — the compressed pixels are copied verbatim, so quality is identical.' },
   { question: 'What metadata is removed?', answer: 'For images: EXIF (including GPS and camera info), XMP, IPTC/Photoshop blocks, and text/time chunks. For PDFs: title, author, subject, keywords, producer, creator, creation and modification dates, and the XMP metadata stream.' },
   { question: 'Why does a file show “no metadata found”?', answer: 'Many files exported by web tools are already stripped. If nothing privacy-relevant is present, the file is left untouched and marked clean.' },
@@ -52,30 +54,22 @@ const faq = [
 
           <FileDropZone
             id="metaDropZone"
-            variant="multi"
-            accept="image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf"
-            prompt="Drop images or PDFs here"
-            hint="JPG · PNG · WebP · PDF accepted · drop several at once"
-            label="Drop files or click to browse"
+            accept="image/jpeg,image/png,image/webp,image/heic,image/heif,image/avif,application/pdf,.jpg,.jpeg,.png,.webp,.heic,.heif,.avif,.pdf"
+            prompt="Drop an image or PDF here"
+            hint="JPG · PNG · WebP · HEIC · AVIF · PDF accepted"
+            label="Drop file or click to browse"
           />
 
-          <!-- Summary + batch actions -->
-          <div id="metaSummary" hidden class="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <p id="metaSummaryText" class="text-sm text-slate-600"></p>
-            <div class="flex gap-2">
-              <button id="metaCleanAllBtn"
-                class="rounded-md bg-gradient-to-br from-indigo-500 to-purple-500 px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50">
-                Clean &amp; download all
-              </button>
-              <button id="metaClearBtn"
-                class="rounded-md border border-slate-200 px-4 py-2 text-sm text-slate-600 transition-colors hover:border-rose-300 hover:text-rose-600">
-                Clear
-              </button>
-            </div>
-          </div>
+          <!-- Metadata report for the loaded file -->
+          <div id="metaReport" class="hidden flex-col gap-4"></div>
 
-          <!-- Per-file result cards -->
-          <div id="metaList" class="mt-6 flex flex-col gap-4"></div>
+          <!-- Action button — always visible, disabled until a cleanable file loads -->
+          <button id="metaDownloadBtn"
+            class="mt-6 w-full rounded-md bg-gradient-to-br from-indigo-500 to-purple-500 px-6 py-3 text-sm font-semibold text-white transition-opacity disabled:opacity-50"
+            disabled
+          >
+            Clean &amp; Download
+          </button>
 
           <p id="metaStatus" class="mt-4 hidden text-center text-sm"></p>
 
@@ -103,29 +97,30 @@ const faq = [
 </MainLayout>
 
 <script>
-  import { wireMultiDropZone } from '@/lib/file-dropzone';
-  import { fmtBytes, extOf } from '@/lib/utils';
+  import { wireDropZone } from '@/lib/file-dropzone';
+  import { extOf } from '@/lib/utils';
+  import { PDFName } from 'pdf-lib';
   import { processImage, groupByCategory, CATEGORY_META, type MetaField } from '@/lib/metadata';
   import { PDFDocument } from 'pdf-lib';
-  import JSZip from 'jszip';
 
-  interface Entry {
-    id: string;
+  interface Loaded {
     file: File;
     fields: MetaField[];
-    cleaned: Uint8Array | null; // null until built / when unsupported
+    cleaned: Uint8Array | null;
     changed: boolean;
-    kind: 'image' | 'pdf' | 'unsupported';
+    /** HEIC/AVIF: metadata detected but can't be stripped in place. */
+    detectOnly: boolean;
     outName: string;
     outType: string;
     error?: string;
   }
 
-  const entries: Entry[] = [];
-  let counter = 0;
+  let current: Loaded | null = null;
+  // Monotonic token: each drop/clear bumps it so a slow analyse() that resolves
+  // after a newer drop can detect it is stale and discard its result.
+  let loadSeq = 0;
 
-  const listEl = () => document.getElementById('metaList')!;
-  const summaryEl = () => document.getElementById('metaSummary')!;
+  const reportEl = () => document.getElementById('metaReport')!;
 
   function showStatus(msg: string, type: 'ok' | 'err' | 'info') {
     const el = document.getElementById('metaStatus')!;
@@ -161,8 +156,12 @@ const faq = [
     try { const d = doc.getCreationDate(); if (d) push('Creation date', d.toISOString(), 'timestamp'); } catch {}
     try { const d = doc.getModificationDate(); if (d) push('Modification date', d.toISOString(), 'timestamp'); } catch {}
 
-    // XMP metadata stream (pdf-lib doesn't parse it; detect its presence).
-    const hasXmp = /\/Type\s*\/Metadata|<x:xmpmeta/.test(new TextDecoder('latin1').decode(buf.subarray(0, Math.min(buf.length, 200_000))));
+    // XMP metadata stream: the catalog's /Metadata object holds an RDF/XMP packet
+    // that duplicates (and often exceeds) the info dictionary. pdf-lib's setters
+    // don't touch it, so we remove it from the catalog ourselves. Detect it by the
+    // catalog reference rather than a byte scan — the XMP packet can sit anywhere
+    // in the file, so a prefix-only scan would miss most real PDFs.
+    const hasXmp = doc.catalog.has(PDFName.of('Metadata'));
     if (hasXmp) fields.push({ category: 'other', label: 'XMP metadata stream', value: null, source: 'PDF' });
 
     const changed = fields.length > 0;
@@ -174,183 +173,168 @@ const faq = [
     // Neutralise dates to the epoch (pdf-lib always writes some date value).
     const epoch = new Date(0);
     doc.setCreationDate(epoch); doc.setModificationDate(epoch);
+    // Actually remove the XMP stream so the report's "removed" is truthful.
+    // Deleting only the catalog reference leaves the orphaned stream object (and
+    // its GPS/author bytes) in the saved file, so we also delete the object from
+    // the context — otherwise the packet is still recoverable by grepping the PDF.
+    if (hasXmp) {
+      const ref = doc.catalog.get(PDFName.of('Metadata'));
+      doc.catalog.delete(PDFName.of('Metadata'));
+      if (ref) doc.context.delete(ref as any);
+    }
 
     const out = await doc.save({ useObjectStreams: false });
     return { fields, cleaned: out, changed: true };
   }
 
-  async function addFile(file: File): Promise<Entry> {
-    const id = 'e' + counter++;
+  async function analyse(file: File): Promise<Loaded> {
     const ext = extOf(file.name);
-    const entry: Entry = {
-      id, file, fields: [], cleaned: null, changed: false,
-      kind: 'unsupported', outName: baseName(file.name) + '.' + ext, outType: file.type || 'application/octet-stream',
+    const loaded: Loaded = {
+      file, fields: [], cleaned: null, changed: false, detectOnly: false,
+      outName: baseName(file.name) + '.' + ext, outType: file.type || 'application/octet-stream',
     };
 
     try {
       if (ext === 'pdf' || file.type === 'application/pdf') {
-        entry.kind = 'pdf';
         const r = await processPdf(file);
-        entry.fields = r.fields; entry.cleaned = r.cleaned; entry.changed = r.changed;
-      } else if (['jpg', 'jpeg', 'png', 'webp'].includes(ext)) {
-        entry.kind = 'image';
+        loaded.fields = r.fields; loaded.cleaned = r.cleaned; loaded.changed = r.changed;
+      } else if (['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif', 'avif'].includes(ext)) {
         const bytes = new Uint8Array(await file.arrayBuffer());
         const r = processImage(bytes);
-        entry.fields = r.fields; entry.cleaned = r.cleaned; entry.changed = r.changed;
+        loaded.fields = r.fields; loaded.cleaned = r.cleaned; loaded.changed = r.changed;
+        loaded.detectOnly = r.detectOnly;
+        if (r.format === 'unknown') loaded.error = 'Unsupported file type. JPG, PNG, WebP, HEIC, AVIF and PDF only.';
       } else {
-        entry.error = 'Unsupported file type. JPG, PNG, WebP and PDF only.';
+        loaded.error = 'Unsupported file type. JPG, PNG, WebP, HEIC, AVIF and PDF only.';
       }
     } catch (err: any) {
-      entry.error = err?.message || 'Could not read this file.';
+      loaded.error = err?.message || 'Could not read this file.';
     }
-    return entry;
+    return loaded;
   }
 
-  function fieldRow(f: MetaField): string {
+  // Badge shown per field: green "removed" once stripped, amber "detected" for
+  // detect-only formats (HEIC/AVIF) where nothing has been removed yet.
+  const BADGE = {
+    removed: 'bg-emerald-50 text-emerald-600">removed',
+    detected: 'bg-amber-100 text-amber-700">detected',
+  } as const;
+
+  function fieldRow(f: MetaField, mode: keyof typeof BADGE): string {
+    // Value on its own line under the label so long monospace strings (e.g. a
+    // producer like "iOS … Quartz PDFContext") truncate to the row width instead
+    // of overflowing the card and crowding the badge.
     const val = f.value
-      ? `<span class="font-mono text-slate-700">${esc(f.value.length > 48 ? f.value.slice(0, 48) + '…' : f.value)}</span>`
-      : `<span class="italic text-slate-400">present</span>`;
+      ? `<span class="mt-0.5 block truncate font-mono text-[11px] text-slate-700" title="${esc(f.value)}">${esc(f.value)}</span>`
+      : `<span class="mt-0.5 block italic text-slate-400">present</span>`;
     return `
-      <li class="flex items-center justify-between gap-3 py-1">
-        <span class="min-w-0 flex-1 truncate text-slate-600">${esc(f.label)} <span class="ml-1 text-[10px] uppercase tracking-wide text-slate-400">${esc(f.source)}</span></span>
-        <span class="flex shrink-0 items-center gap-2">${val}<span class="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-600">removed</span></span>
+      <li class="py-1.5">
+        <span class="flex items-center justify-between gap-2">
+          <span class="min-w-0 flex-1 truncate text-slate-600">${esc(f.label)} <span class="ml-1 text-[10px] uppercase tracking-wide text-slate-400">${esc(f.source)}</span></span>
+          <span class="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold ${BADGE[mode]}</span>
+        </span>
+        ${val}
       </li>`;
   }
 
-  function categoriesHtml(fields: MetaField[]): string {
-    const groups = groupByCategory(fields);
-    return groups.map((g) => {
+  function categoriesHtml(fields: MetaField[], mode: keyof typeof BADGE = 'removed'): string {
+    return groupByCategory(fields).map((g) => {
       const meta = CATEGORY_META[g.category];
       return `
         <div class="rounded-md border border-slate-100 bg-slate-50/60 p-3">
           <p class="mb-1.5 text-xs font-semibold text-slate-700">${meta.icon} ${meta.title}
             <span class="ml-1 font-normal text-slate-400">${g.fields.length}</span></p>
-          <ul class="divide-y divide-slate-100 text-xs">${g.fields.map(fieldRow).join('')}</ul>
+          <ul class="divide-y divide-slate-100 text-xs">${g.fields.map((f) => fieldRow(f, mode)).join('')}</ul>
         </div>`;
     }).join('');
   }
 
-  function cardHtml(e: Entry): string {
-    const badge = e.kind === 'pdf'
-      ? '<span class="inline-flex shrink-0 items-center rounded-md bg-rose-100 px-2.5 py-1 font-mono text-xs font-semibold text-rose-700">PDF</span>'
-      : `<span class="inline-flex shrink-0 items-center rounded-md bg-purple-100 px-2.5 py-1 font-mono text-xs font-semibold text-purple-700">${esc(extOf(e.file.name).toUpperCase())}</span>`;
+  const downloadBtn = () => document.getElementById('metaDownloadBtn') as HTMLButtonElement;
 
-    let body: string;
-    if (e.error) {
-      body = `<p class="mt-3 text-sm text-rose-500">✕ ${esc(e.error)}</p>`;
-    } else if (!e.changed) {
-      body = `<p class="mt-3 flex items-center gap-2 text-sm text-emerald-600"><span>✓</span> No privacy metadata found — this file is already clean.</p>`;
+  function renderReport(l: Loaded) {
+    const box = reportEl();
+    let html: string;
+    if (l.error) {
+      html = `<p class="text-sm text-rose-500">✕ ${esc(l.error)}</p>`;
+    } else if (l.detectOnly) {
+      // HEIC/AVIF: we can show what's inside but not strip it in place. Report the
+      // findings (or note none were found) and steer the user to convert instead.
+      const fmt = extOf(l.file.name).toUpperCase();
+      const found = l.fields.length
+        ? `
+          <p class="text-xs font-medium text-slate-500">Metadata detected in this ${esc(fmt)} file:</p>
+          <div class="grid gap-2 sm:grid-cols-2">${categoriesHtml(l.fields, 'detected')}</div>`
+        : `<p class="text-sm text-slate-600">No embedded metadata items were found in this ${esc(fmt)} file.</p>`;
+      html = `
+        ${found}
+        <div class="rounded-md border border-amber-200 bg-amber-50/60 p-3 text-xs leading-relaxed text-amber-800">
+          <p class="font-semibold">${esc(fmt)} can’t be cleaned in place here.</p>
+          <p class="mt-1">${esc(fmt)} files use a container this tool can’t safely rewrite. Convert the file to JPG or PNG with the
+            <a href="/tools/image-convert" class="font-semibold text-amber-900 underline underline-offset-2 hover:text-amber-950">Image Converter</a> —
+            the re-encode drops all EXIF, GPS and XMP metadata — then this tool can confirm it’s clean.</p>
+        </div>`;
+    } else if (!l.changed) {
+      html = `<p class="flex items-center gap-2 text-sm text-emerald-600"><span>✓</span> No privacy metadata found — this file is already clean.</p>`;
     } else {
-      body = `
-        <p class="mt-3 mb-2 text-xs font-medium text-slate-500">${e.fields.length} item${e.fields.length === 1 ? '' : 's'} found and removed:</p>
-        <div class="grid gap-2 sm:grid-cols-2">${categoriesHtml(e.fields)}</div>
-        <button data-dl="${e.id}"
-          class="mt-3 rounded-md border border-slate-200 px-4 py-2 text-sm text-slate-600 transition-colors hover:border-purple-300">
-          ↓ Download cleaned file
-        </button>`;
+      html = `
+        <p class="text-xs font-medium text-slate-500">${l.fields.length} item${l.fields.length === 1 ? '' : 's'} found and removed:</p>
+        <div class="grid gap-2 sm:grid-cols-2">${categoriesHtml(l.fields)}</div>`;
     }
-
-    return `
-      <div class="rounded-md border border-slate-200 bg-white p-4" data-entry="${e.id}">
-        <div class="flex items-center gap-3">
-          ${badge}
-          <span class="min-w-0 flex-1">
-            <span class="block truncate text-sm font-medium text-slate-800">${esc(e.file.name)}</span>
-            <span class="block text-xs text-slate-500">${fmtBytes(e.file.size)}</span>
-          </span>
-          <button data-remove="${e.id}" class="shrink-0 rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-400 transition-colors hover:border-rose-300 hover:text-rose-600" aria-label="Remove ${esc(e.file.name)}">✕</button>
-        </div>
-        ${body}
-      </div>`;
+    box.innerHTML = html;
+    box.classList.remove('hidden');
+    box.classList.add('flex');
+    // Enable the action only when there's a cleaned copy to hand back (never for
+    // detect-only formats, which we can't strip in place).
+    downloadBtn().disabled = !(l.changed && l.cleaned);
   }
 
-  function render() {
-    listEl().innerHTML = entries.map(cardHtml).join('');
-
-    const cleanable = entries.filter((e) => e.changed).length;
-    const summary = summaryEl();
-    if (entries.length === 0) {
-      summary.hidden = true;
-      return;
-    }
-    summary.hidden = false;
-    const clean = entries.length - cleanable - entries.filter((e) => e.error).length;
-    document.getElementById('metaSummaryText')!.textContent =
-      `${entries.length} file${entries.length === 1 ? '' : 's'} — ${cleanable} with metadata to remove, ${clean} already clean.`;
-    (document.getElementById('metaCleanAllBtn') as HTMLButtonElement).disabled = cleanable === 0;
+  function clearReport() {
+    const box = reportEl();
+    box.innerHTML = '';
+    box.classList.add('hidden');
+    box.classList.remove('flex');
+    downloadBtn().disabled = true;
   }
 
-  function download(e: Entry) {
-    if (!e.cleaned) return;
-    const blob = new Blob([e.cleaned], { type: e.outType });
+  function download(l: Loaded) {
+    if (!l.cleaned) return;
+    const blob = new Blob([l.cleaned], { type: l.outType });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url; a.download = e.outName;
+    a.href = url; a.download = l.outName;
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 10_000);
   }
 
   // ── Wiring ──────────────────────────────────────────────────────────────────
-  wireMultiDropZone('metaDropZone', {
-    onFiles: async (files) => {
+  // The drop zone's own filled card shows badge · name · size · type · clear.
+  wireDropZone('metaDropZone', {
+    // Synchronous return so the drop zone renders its filled card immediately;
+    // the scan runs asynchronously and fills the report panel when ready.
+    onFile: (file) => {
+      const seq = ++loadSeq;
       hideStatus();
-      showStatus(`Scanning ${files.length} file${files.length === 1 ? '' : 's'}…`, 'info');
-      for (const file of files) {
-        const entry = await addFile(file);
-        entries.push(entry);
-        render();
-      }
+      clearReport();
+      showStatus('Scanning…', 'info');
+      void (async () => {
+        const loaded = await analyse(file);
+        if (seq !== loadSeq) return; // a newer drop/clear superseded this one
+        current = loaded;
+        renderReport(current);
+        hideStatus();
+      })();
+    },
+    onClear: () => {
+      loadSeq++; // invalidate any in-flight scan
+      current = null;
+      clearReport();
       hideStatus();
     },
+    typeLabel: (file) =>
+      extOf(file.name) === 'pdf' ? 'PDF document' : `${extOf(file.name).toUpperCase()} image`,
   });
 
-  listEl().addEventListener('click', (ev) => {
-    const t = ev.target as HTMLElement;
-    const dl = t.closest('[data-dl]') as HTMLElement | null;
-    const rm = t.closest('[data-remove]') as HTMLElement | null;
-    if (dl) {
-      const e = entries.find((x) => x.id === dl.dataset.dl);
-      if (e) download(e);
-    } else if (rm) {
-      const idx = entries.findIndex((x) => x.id === rm.dataset.remove);
-      if (idx >= 0) { entries.splice(idx, 1); render(); }
-    }
-  });
-
-  document.getElementById('metaClearBtn')!.addEventListener('click', () => {
-    entries.length = 0;
-    render();
-    hideStatus();
-  });
-
-  document.getElementById('metaCleanAllBtn')!.addEventListener('click', async () => {
-    const cleanable = entries.filter((e) => e.changed && e.cleaned);
-    if (cleanable.length === 0) return;
-    if (cleanable.length === 1) { download(cleanable[0]); return; }
-
-    const btn = document.getElementById('metaCleanAllBtn') as HTMLButtonElement;
-    btn.disabled = true;
-    try {
-      showStatus('Packaging cleaned files…', 'info');
-      const zip = new JSZip();
-      const used = new Set<string>();
-      for (const e of cleanable) {
-        let name = e.outName;
-        let n = 1;
-        while (used.has(name)) name = `${baseName(e.outName)}-${n++}.${extOf(e.outName)}`;
-        used.add(name);
-        zip.file(name, e.cleaned!);
-      }
-      const blob = await zip.generateAsync({ type: 'blob' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = 'cleaned-files.zip';
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(url), 10_000);
-      showStatus(`✓ ${cleanable.length} cleaned files downloaded as cleaned-files.zip`, 'ok');
-    } catch (err: any) {
-      showStatus('✕ ' + (err?.message || 'Could not build ZIP.'), 'err');
-    }
-    btn.disabled = false;
+  downloadBtn().addEventListener('click', () => {
+    if (current && current.changed && current.cleaned) download(current);
   });
 </script>
