@@ -8,7 +8,7 @@ export const navCategories: NavCategory[] = [
   {
     label: 'Images & Documents',
     href: '/#images',
-    matches: ['/tools/image', '/tools/ico', '/tools/pdf', '/tools/file'],
+    matches: ['/tools/image', '/tools/ico', '/tools/pdf', '/tools/file', '/tools/metadata'],
   },
   {
     label: 'Typography & Color',
