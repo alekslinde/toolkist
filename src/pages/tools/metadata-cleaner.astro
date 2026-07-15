@@ -298,7 +298,9 @@ const faq = [
 
   function download(l: Loaded) {
     if (!l.cleaned) return;
-    const blob = new Blob([l.cleaned], { type: l.outType });
+    // .slice() yields a Uint8Array over a fresh ArrayBuffer (not ArrayBufferLike),
+    // which satisfies BlobPart under strict lib types — matches pdf-compress.
+    const blob = new Blob([l.cleaned.slice()], { type: l.outType });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url; a.download = l.outName;
