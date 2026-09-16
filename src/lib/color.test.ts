@@ -9,6 +9,8 @@ import {
   isLight,
   isValidHex,
   mixColors,
+  parseCssColor,
+  contrastRatioRgb,
 } from './color.js';
 
 describe('hexToRgb', () => {
@@ -230,5 +232,113 @@ describe('mixColors', () => {
   it('interpolates correctly for a known value', () => {
     // #ff0000 → #0000ff at 0.25: r=191, g=0, b=64 (Math.round(255*0.25)=64)
     expect(mixColors('#ff0000', '#0000ff', 0.25)).toBe('#bf0040');
+  });
+});
+
+describe('parseCssColor', () => {
+  it('parses 6-digit hex', () => {
+    expect(parseCssColor('#ff0000')).toEqual({ r: 255, g: 0, b: 0, a: 1 });
+  });
+
+  it('parses 3-digit hex', () => {
+    expect(parseCssColor('#f00')).toEqual({ r: 255, g: 0, b: 0, a: 1 });
+  });
+
+  it('parses 8-digit hex with alpha', () => {
+    expect(parseCssColor('#ff000080')).toEqual({ r: 255, g: 0, b: 0, a: 128 / 255 });
+  });
+
+  it('parses 4-digit hex with alpha', () => {
+    expect(parseCssColor('#f00f')).toEqual({ r: 255, g: 0, b: 0, a: 1 });
+  });
+
+  it('parses rgb() with commas', () => {
+    expect(parseCssColor('rgb(18, 52, 86)')).toEqual({ r: 18, g: 52, b: 86, a: 1 });
+  });
+
+  it('parses rgba() with alpha', () => {
+    expect(parseCssColor('rgba(0, 0, 0, 0.5)')).toEqual({ r: 0, g: 0, b: 0, a: 0.5 });
+  });
+
+  it('parses space-separated rgb with slash alpha', () => {
+    expect(parseCssColor('rgb(255 0 0 / 0.25)')).toEqual({ r: 255, g: 0, b: 0, a: 0.25 });
+  });
+
+  it('parses percentage rgb components', () => {
+    expect(parseCssColor('rgb(100%, 0%, 0%)')).toEqual({ r: 255, g: 0, b: 0, a: 1 });
+  });
+
+  it('parses hsl()', () => {
+    expect(parseCssColor('hsl(0, 100%, 50%)')).toEqual({ r: 255, g: 0, b: 0, a: 1 });
+  });
+
+  it('parses hsl() with deg and normalises hue past 360', () => {
+    expect(parseCssColor('hsl(360deg, 100%, 50%)')).toEqual({ r: 255, g: 0, b: 0, a: 1 });
+  });
+
+  it('parses hsla() with alpha', () => {
+    expect(parseCssColor('hsla(0, 100%, 50%, 0.5)')).toEqual({ r: 255, g: 0, b: 0, a: 0.5 });
+  });
+
+  it('parses named colours', () => {
+    expect(parseCssColor('white')).toEqual({ r: 255, g: 255, b: 255, a: 1 });
+    expect(parseCssColor('rebeccapurple')).toEqual({ r: 102, g: 51, b: 153, a: 1 });
+  });
+
+  it('is case- and whitespace-insensitive', () => {
+    expect(parseCssColor('  #FF0000  ')).toEqual({ r: 255, g: 0, b: 0, a: 1 });
+    expect(parseCssColor('WHITE')).toEqual({ r: 255, g: 255, b: 255, a: 1 });
+  });
+
+  it('treats transparent as fully transparent black', () => {
+    expect(parseCssColor('transparent')).toEqual({ r: 0, g: 0, b: 0, a: 0 });
+  });
+
+  it('clamps out-of-range components', () => {
+    expect(parseCssColor('rgb(300, -20, 0)')).toEqual({ r: 255, g: 0, b: 0, a: 1 });
+  });
+
+  // Null means "needs page context" — callers must not treat it as a pass.
+  it('returns null for context-dependent keywords', () => {
+    expect(parseCssColor('currentColor')).toBeNull();
+    expect(parseCssColor('inherit')).toBeNull();
+    expect(parseCssColor('var(--brand)')).toBeNull();
+  });
+
+  it('returns null for gradients and unknown names', () => {
+    expect(parseCssColor('linear-gradient(red, blue)')).toBeNull();
+    expect(parseCssColor('notacolour')).toBeNull();
+  });
+
+  it('returns null for malformed input', () => {
+    expect(parseCssColor('')).toBeNull();
+    expect(parseCssColor('#12345')).toBeNull();
+    expect(parseCssColor('#gggggg')).toBeNull();
+    expect(parseCssColor('rgb(1, 2)')).toBeNull();
+    expect(parseCssColor('rgb()')).toBeNull();
+  });
+});
+
+describe('contrastRatioRgb', () => {
+  it('returns 21 for black on white', () => {
+    const r = contrastRatioRgb({ r: 0, g: 0, b: 0 }, { r: 255, g: 255, b: 255 });
+    expect(r).toBeCloseTo(21, 5);
+  });
+
+  it('returns 1 for identical colours', () => {
+    const r = contrastRatioRgb({ r: 120, g: 120, b: 120 }, { r: 120, g: 120, b: 120 });
+    expect(r).toBeCloseTo(1, 5);
+  });
+
+  it('is order-independent', () => {
+    const a = contrastRatioRgb({ r: 0, g: 0, b: 0 }, { r: 200, g: 200, b: 200 });
+    const b = contrastRatioRgb({ r: 200, g: 200, b: 200 }, { r: 0, g: 0, b: 0 });
+    expect(a).toBeCloseTo(b, 10);
+  });
+
+  it('agrees with the hex-based contrastRatio', () => {
+    const viaHex = contrastRatio('#1a1a1a', '#f5f5f5');
+    const viaRgb = contrastRatioRgb({ r: 26, g: 26, b: 26 }, { r: 245, g: 245, b: 245 });
+    expect(viaRgb).toBeCloseTo(viaHex, 10);
   });
 });
