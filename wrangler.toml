@@ -8,7 +8,14 @@ binding   = "ASSETS"
 # Run the Worker before serving assets so it can inject the per-tool
 # window.__C__ helpful-count script into tool-page HTML (see counter.js).
 # Non-tool assets still short-circuit to the asset layer inside the Worker.
-run_worker_first = ["/tools/*"]
+#
+# Set to "/*" because the legacy-domain redirect lives in Worker code: a path
+# served straight from the asset layer never reaches it, so the old domain
+# would serve the site instead of redirecting. These rules are path-only and
+# cannot be scoped to a host, hence all paths. Requests that are neither a
+# legacy host nor an API route short-circuit to the asset layer at the top of
+# the Worker, so the extra hop stays cheap.
+run_worker_first = ["/*"]
 
 [[durable_objects.bindings]]
 name       = "COUNTERS"
