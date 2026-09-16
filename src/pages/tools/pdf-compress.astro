@@ -30,7 +30,7 @@ const levels = [
 ---
 
 <MainLayout
-  title="PDF Compressor — Free In-Browser Tool | Toolbox"
+  title="PDF Compressor — Free In-Browser Tool | Toolkist"
   description="Compress PDF files in your browser. Re-encodes embedded images at lower quality. No uploads. Powered by pdf-lib."
   alpine={false}
 >
@@ -423,7 +423,7 @@ const levels = [
           const info = pdfDoc.context.lookup(infoRef, PDFDict);
           for (const k of ['Title', 'Author', 'Subject', 'Keywords', 'Creator'])
             info.delete(PDFName.of(k));
-          info.set(PDFName.of('Producer'), PDFString.of('Toolbox'));
+          info.set(PDFName.of('Producer'), PDFString.of('Toolkist'));
         }
       } catch {}
       (pdfDoc.catalog as any).delete(PDFName.of('Metadata'));
