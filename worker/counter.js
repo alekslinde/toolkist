@@ -155,6 +155,15 @@ export default {
       return Response.redirect(url.toString(), 301);
     }
 
+    // run_worker_first is "/*" (see wrangler.toml), so every request lands here,
+    // including static assets. Anything that is not an API route and not a tool
+    // page needs no Worker logic, so hand it to the asset layer immediately
+    // rather than falling through the handlers below.
+    const API_PATHS = new Set(['/pv', '/feedback', '/u']);
+    if (!API_PATHS.has(url.pathname) && !/^\/tools\/[a-z][a-z0-9-]*\/?$/.test(url.pathname)) {
+      return env.ASSETS.fetch(request);
+    }
+
     // ── Page-view counter ─────────────────────────────────────────────────────
     if (url.pathname === '/pv' && request.method === 'POST') {
       const slug = url.searchParams.get('s');
