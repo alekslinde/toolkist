@@ -35,7 +35,7 @@ const wawoff2BindingFix = {
 // (pdf-lib, wawoff2, canvas encoders) on synthetic fixtures — no user value —
 // so they must never ship to production. They stay reachable in `npm run dev`
 // but this integration deletes their emitted output from dist/ after the
-// static build, so e.g. lindetoolbox.com/tools/benchmark 404s in production.
+// static build, so e.g. toolkist.app/tools/benchmark 404s in production.
 const DEV_ONLY_ROUTES = ['tools/benchmark'];
 const excludeDevOnlyPages = {
   name: 'exclude-dev-only-pages',
@@ -51,7 +51,7 @@ const excludeDevOnlyPages = {
 };
 
 export default defineConfig({
-  site: 'https://lindetoolbox.com',
+  site: 'https://toolkist.app',
   redirects: {
     '/tools/token-defluffer': '/',
   },

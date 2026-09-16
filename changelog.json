@@ -1,5 +1,12 @@
 [
   {
+    "version": "7.3",
+    "date": "2026-09-17",
+    "changes": [
+      "Toolbox is now Toolkist, live at toolkist.app. Every existing link keeps working — the old address redirects to the matching page on the new one, so saved bookmarks and shared links land where you expect. Nothing about how the tools work has changed, and everything still runs entirely in your browser with no uploads"
+    ]
+  },
+  {
     "version": "7.2",
     "date": "2026-07-15",
     "changes": [

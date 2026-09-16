@@ -21,7 +21,7 @@ interface Props {
 const {
   title,
   description,
-  canonical = `https://lindetoolbox.com${Astro.url.pathname}`,
+  canonical = `https://toolkist.app${Astro.url.pathname}`,
   ogTitle = title,
   ogDescription = description,
   alpine = false,
@@ -39,7 +39,7 @@ const path = Astro.url.pathname;
 
   <title>{title}</title>
   <meta name="description" content={description} />
-  <meta name="author" content="Alex Linde" />
+  <meta name="author" content="Aleks Linde" />
   <meta name="robots" content="index, follow" />
   <link rel="canonical" href={canonical} />
 
@@ -49,14 +49,14 @@ const path = Astro.url.pathname;
   <meta property="og:url"         content={canonical} />
   <meta property="og:title"       content={ogTitle} />
   <meta property="og:description" content={ogDescription} />
-  <meta property="og:image"       content="https://lindetoolbox.com/og.png" />
+  <meta property="og:image"       content="https://toolkist.app/og.png" />
   <meta property="og:locale"      content="en_GB" />
   <meta property="og:site_name"   content="Toolbox by A.L." />
 
   <meta name="twitter:card"        content="summary_large_image" />
   <meta name="twitter:title"       content={ogTitle} />
   <meta name="twitter:description" content={ogDescription} />
-  <meta name="twitter:image"       content="https://lindetoolbox.com/og.png" />
+  <meta name="twitter:image"       content="https://toolkist.app/og.png" />
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

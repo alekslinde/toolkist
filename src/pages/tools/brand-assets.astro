@@ -1231,7 +1231,7 @@ const faq = [
     }
     md += '\n## Typography\n\n| Font | Role | Source |\n|------|------|--------|\n';
     (d.fonts||[]).forEach((f: any) => { md += '| '+f.name+' | '+f.role+' | '+f.source+' |\n'; });
-    md += '\n---\n*Extracted by Toolbox — https://lindetoolbox.com/*\n';
+    md += '\n---\n*Extracted by Toolkist — https://toolkist.app/*\n';
     const url = URL.createObjectURL(new Blob([md],{type:'text/markdown'}));
     const a = document.createElement('a'); a.href=url; a.download=name+'-brand-guidelines.md';
     document.body.appendChild(a); a.click(); document.body.removeChild(a);

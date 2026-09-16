@@ -8,7 +8,7 @@ git merge feature/<name>
 npm run deploy        # astro build + wrangler deploy to Cloudflare
 ```
 
-Then open `changelog.json` and prepend an entry if the version was bumped (see `/build` for format rules).
+Then prepend an entry to `changelog.json` for any user-visible change. The file is ordered newest-first and the header version is read from the first entry, so the new entry goes at the top: `{ "version", "date": "YYYY-MM-DD", "changes": [...] }`.
 
 ## From main (bug fix, copy change, small tweak)
 
@@ -25,6 +25,6 @@ npm run deploy
 
 ## Cloudflare deployment note
 
-`wrangler deploy` publishes `dist/` via the Worker in `worker/counter.js`. The Worker routes all non-API requests to the static `dist/` assets and handles `/fontpair` for AI font pairing. If the deploy succeeds but the live site looks wrong, check that `astro build` ran successfully before deploying.
+`wrangler deploy` publishes `dist/` via the Worker in `worker/counter.js`, which serves the static assets and the endpoints defined in that file. If the deploy succeeds but the live site looks wrong, check that `astro build` ran successfully before deploying.
 
-The `ANTHROPIC_KEY` secret must be set in the Cloudflare dashboard (Workers → lindetoolbox → Settings → Variables) for font pairing to work.
+Runtime secrets are set with `wrangler secret put <NAME>`; the Worker reads them from `env`. See `worker/counter.js` for which are required.

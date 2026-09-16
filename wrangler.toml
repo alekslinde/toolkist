@@ -1,4 +1,4 @@
-name               = "lindetoolbox"
+name               = "toolkist"
 main               = "worker/counter.js"
 compatibility_date = "2025-01-01"
 
@@ -26,6 +26,13 @@ new_sqlite_classes = ["Counter"]
 tag                = "v2"
 new_sqlite_classes = ["FeedbackStore"]
 
+[[routes]]
+pattern = "toolkist.app"
+custom_domain = true
+
+# Legacy domain, routed here so the Worker can 301 it to toolkist.app
+# (see LEGACY_HOSTS in worker/counter.js). Keep this route for as long as the
+# old links should keep resolving.
 [[routes]]
 pattern = "lindetoolbox.com"
 custom_domain = true

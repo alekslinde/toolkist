@@ -1,16 +1,17 @@
-# Toolbox Astro — CLAUDE.md
+# Toolkist — CLAUDE.md
 
-Browser-based developer tools by Alex Linde. Deployed at **lindetoolbox.com** via Cloudflare Workers + Assets. All tools run entirely client-side — no uploads, no backend processing.
+Browser-based developer tools by Aleks Linde. Deployed at **toolkist.app** via Cloudflare Workers + Assets. All tools run entirely client-side — no uploads, no backend processing.
 
 ## Skills (slash commands)
 
 | Command | When to use |
 |---|---|
-| `/build` | Run the Astro build |
 | `/ship` | Ship to production — full checklist |
 | `/new-tool` | Scaffold a new tool page |
 | `/deps` | Update dependencies |
 | `/check-console` | Check all pages for browser console errors |
+| `/review-reuse` | Review changed files for duplicated logic |
+| `/review-efficiency` | Review changed files for performance issues |
 
 ## Project structure
 
