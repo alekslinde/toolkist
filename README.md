@@ -1,8 +1,8 @@
-# Toolbox
+# Toolkist
 
 A collection of free, privacy-first developer tools that run entirely in the browser. No uploads, no accounts, no data ever leaves your device.
 
-Live at **[lindetoolbox.com](https://lindetoolbox.com)**
+Live at **[toolkist.app](https://toolkist.app)**
 
 ---
 

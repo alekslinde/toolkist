@@ -2,6 +2,14 @@
 
 Provenance for all files in this directory.
 
+Fixture content is synthetic and arbitrary, but **byte size is load-bearing** —
+editing a fixture changes what the benchmarks measure and makes new figures
+non-comparable with older ones. Before changing one, capture a baseline (see
+`bench/results/BASELINE.md`) and note the size delta there.
+
+The HTML fixtures are duplicated at `public/bench-fixtures/html/` for the
+browser runner. The two copies are kept byte-identical; update both together.
+
 ## Text fixtures
 
 | File | Size | Description |

@@ -134,9 +134,26 @@ const COUNTER_KEYS = [
 
 // ── Main worker ───────────────────────────────────────────────────────────────
 
+// Hosts that must hand traffic to the canonical domain. Kept as an explicit
+// list so a request arriving on an unexpected host is served normally rather
+// than bounced somewhere it did not ask for.
+const CANONICAL_HOST = 'toolkist.app';
+const LEGACY_HOSTS = new Set(['lindetoolbox.com', 'www.lindetoolbox.com']);
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+
+    // ── Legacy-domain redirect ────────────────────────────────────────────────
+    // Runs before every other handler so a request on the old domain never
+    // reaches counter or feedback state. Path, query and hash are preserved so
+    // deep links survive the move; 301 lets search engines transfer ranking.
+    if (LEGACY_HOSTS.has(url.hostname)) {
+      url.hostname = CANONICAL_HOST;
+      url.protocol = 'https:';
+      url.port = '';
+      return Response.redirect(url.toString(), 301);
+    }
 
     // ── Page-view counter ─────────────────────────────────────────────────────
     if (url.pathname === '/pv' && request.method === 'POST') {
@@ -153,7 +170,7 @@ export default {
     // ── Feedback ───────────────────────────────────────────────────────────────
     if (url.pathname === '/feedback') {
       const origin = request.headers.get('Origin');
-      if (origin && origin !== 'https://lindetoolbox.com') {
+      if (origin && origin !== 'https://toolkist.app') {
         return new Response('Forbidden', { status: 403 });
       }
 
