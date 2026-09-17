@@ -161,6 +161,22 @@ describe('rule: contrast (dom only)', () => {
     expect(found.every(i => i.sev === 'notice')).toBe(true);
   });
 
+  // The limitation is the same for every element, so it is stated once.
+  it('emits at most one coverage notice per run', () => {
+    const many = '<p style="color:var(--a)">1</p><p style="color:var(--b)">2</p>'
+      + '<p style="color:var(--c)">3</p>';
+    expect(domCheck(many).filter(i => i.ruleId === 'contrast')).toHaveLength(1);
+  });
+
+  it('scores a compliant document 100 despite the contrast notice', () => {
+    const html = '<html lang="en"><head><title>T</title></head><body>'
+      + '<a href="#m">Skip to content</a><nav aria-label="P"><a href="/a">About us</a></nav>'
+      + '<main id="m"><h1>Heading</h1></main></body></html>';
+    const r = a11yCheck(html);
+    expect(r.summary.err).toBe(0);
+    expect(r.summary.score).toBe(100);
+  });
+
   it('emits a notice when alpha makes the ratio indeterminate', () => {
     const html = '<p style="color:rgba(0,0,0,0.4);background-color:#fff">x</p>';
     const found = domCheck(html).filter(i => i.ruleId === 'contrast');
@@ -292,6 +308,20 @@ describe('false-positive guards', () => {
     expect(ids(domCheck(html))).not.toContain('form-label');
   });
 
+  // Truncated pastes and JSX fragments are normal input for this tool; an
+  // unterminated element must not be reported as having no accessible name.
+  it('does not flag unclosed elements as unnamed', () => {
+    expect(ids(astCheck('<button>Save'))).not.toContain('button-name');
+    expect(ids(astCheck('<h1>Quarterly report'))).not.toContain('heading-order');
+    expect(ids(astCheck('<a href="/x">Read the deployment guide')))
+      .not.toContain('link-name');
+  });
+
+  it('still flags genuinely empty elements', () => {
+    expect(ids(astCheck('<button></button>'))).toContain('button-name');
+    expect(ids(astCheck('<a href="/x"></a>'))).toContain('link-name');
+  });
+
   it('ignores markup inside script and style blocks', () => {
     expect(astCheck('<script>var s = "<img src=x>";</script>')).toHaveLength(0);
     expect(astCheck('<style>/* <img src=x> */</style>')).toHaveLength(0);
@@ -383,6 +413,17 @@ describe('summary', () => {
 
   it('scores a clean result 100', () => {
     expect(summarise([]).score).toBe(100);
+  });
+
+  // A notice says "not checked", not "broken" — it must not cost score, or a
+  // fully compliant page could never reach 100.
+  it('does not penalise notices', () => {
+    const s = summarise([
+      { ruleId: 'contrast', engine: 'dom', sev: 'notice', confidence: 'exact', msg: '', fix: '', sel: '' },
+      { ruleId: 'landmarks', engine: 'dom', sev: 'notice', confidence: 'exact', msg: '', fix: '', sel: '' },
+    ]);
+    expect(s.score).toBe(100);
+    expect(s.notice).toBe(2);
   });
 
   it('never scores below zero', () => {

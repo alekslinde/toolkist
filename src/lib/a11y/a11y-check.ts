@@ -58,7 +58,12 @@ export function summarise(issues: Issue[]): Summary {
   const err = issues.filter(i => i.sev === 'err').length;
   const warn = issues.filter(i => i.sev === 'warn').length;
   const notice = issues.filter(i => i.sev === 'notice').length;
-  const penalty = issues.reduce((n, i) => n + SEVERITY_WEIGHT[i.sev], 0);
+  // Notices report what could not be checked, not what is wrong, so they carry
+  // no penalty — a clean document scores 100 even though contrast needs a full
+  // page render. Counting them would make the score unreachable by design.
+  const penalty = issues
+    .filter(i => i.sev !== 'notice')
+    .reduce((n, i) => n + SEVERITY_WEIGHT[i.sev], 0);
   // Weighted penalty against the rule count — a rough health signal, always
   // displayed next to the raw counts rather than on its own.
   const worst = RULES.length * SEVERITY_WEIGHT.err;

@@ -366,15 +366,17 @@ export function domCheck(source: string, parser?: DOMParser): Issue[] {
         selectorFor(el));
     }
   }
+  // One notice covers the whole limitation. Reporting per-element would bury
+  // real findings under a caveat that is the same for every element.
+  const contrastChecked = doc.querySelectorAll('[style*="color"]').length > 0;
   if (contrastUnresolved > 0) {
     add('contrast', 'notice',
-      `${contrastUnresolved} element(s) have colours that cannot be resolved from this snippet alone.`,
+      `${contrastUnresolved} element(s) declare colours that cannot be resolved from markup alone (variables, partial transparency, or an unstated background).`,
       'Run the full-page audit, which computes colour against the rendered page.',
       'document');
-  }
-  if (!doc.querySelector('[style*="color"]')) {
+  } else if (!contrastChecked) {
     add('contrast', 'notice',
-      'No inline colours found, so contrast could not be checked from markup alone.',
+      'Contrast was not checked: this markup carries no inline colours, so text colour comes from a stylesheet that is not visible here.',
       'Run the full-page audit to check contrast against the rendered stylesheet.',
       'document');
   }
