@@ -122,7 +122,10 @@ tests; the pages are thin views over it.
 ```bash
 npm run dev        # astro dev server
 npm run build      # astro build → dist/
-npm run preview    # serve dist/ locally
+npm run preview    # serve dist/ locally (static only — API routes 404)
+npm run preview:worker  # astro build + wrangler dev — serves dist/ *through* the
+                        # Worker, so /pv, /feedback and /u behave as in production.
+                        # Use this for browser console checks.
 npm test           # vitest run (run before committing)
 npm run bench:node # benchmarks (vitest bench)
 npm run deploy     # astro build + wrangler deploy to Cloudflare
