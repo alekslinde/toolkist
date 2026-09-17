@@ -73,6 +73,7 @@ Source of truth is `src/data/tools.ts` — keep this table in sync with it.
 | `pdf-convert` | PDF Converter (PDF↔image, extract text) |
 | `pdf-compress` | PDF Compressor |
 | `file-diff` | File Diff (text/code/PDF) |
+| `metadata-cleaner` | Metadata Cleaner |
 
 **Typography & Color**
 
@@ -90,6 +91,7 @@ Source of truth is `src/data/tools.ts` — keep this table in sync with it.
 
 | Slug | Tool |
 |---|---|
+| `accessibility-checker` | Accessibility Checker (20 WCAG rules, static + DOM engines) |
 | `code-formatter` | Code Formatter |
 | `code-minifier` | Code Minifier |
 | `scss-compiler` | SCSS Compiler |

@@ -1,0 +1,334 @@
+---
+import MainLayout from '@/layouts/MainLayout.astro';
+import Breadcrumbs from '@/components/Breadcrumbs.astro';
+import QuickTips from '@/components/QuickTips.astro';
+import FAQAccordion from '@/components/FAQAccordion.astro';
+import HelpfulButton from '@/components/HelpfulButton.astro';
+import FileDropZone from '@/components/FileDropZone.astro';
+
+const tips = [
+  { heading: 'What it checks', body: '20 WCAG 2.2 rules covering images, forms, headings, ARIA, tables, media, focus order and live regions.' },
+  { heading: 'Two engines', body: 'Source scanning works on JSX and Astro templates; DOM parsing resolves real structure in HTML. Run either or both.' },
+  { heading: 'Confidence', body: 'Findings marked "approx" were inferred without resolving structure — check those by hand before acting.' },
+  { heading: 'Private', body: 'Everything runs in your browser. No markup is uploaded.' },
+];
+
+const faq = [
+  { question: 'Does passing every rule mean my page is accessible?', answer: 'No. Automated checks find roughly a third of real accessibility problems. They cannot judge whether alt text is meaningful, whether focus order makes sense, or whether an interaction works with a screen reader. Treat a clean result as a floor, not a finish line — test with a keyboard and a screen reader.' },
+  { question: 'Why is contrast often only a notice?', answer: 'Contrast needs the rendered page. This tool sees a snippet, so it can only compute a ratio where colours are declared inline and the background is resolvable. Anything set by a stylesheet, a CSS variable, or a partially transparent layer is reported as unchecked rather than guessed at.' },
+  { question: 'What does the "approx" badge mean?', answer: 'In JSX and Astro mode, rules that need document structure — heading order, duplicate ids, ARIA validity, table headers, live regions — are inferred from source order. Conditionals, .map() loops and spread props can hide the real tree, so these findings can be wrong in both directions. Findings without the badge were resolved exactly.' },
+  { question: 'What does it not check?', answer: 'Cross-file references, external stylesheets and computed layout, focus-trap behaviour at runtime, and what a screen reader actually announces. Single-file analysis cannot reach any of those.' },
+  { question: 'Is my markup uploaded anywhere?', answer: 'No. Parsing and analysis run entirely in your browser. Nothing leaves your machine, and there is no backend to send it to.' },
+];
+---
+
+<MainLayout
+  title="Accessibility Checker — Free WCAG Audit Tool | Toolkist"
+  description="Check HTML, JSX and Astro markup against 20 WCAG 2.2 rules in your browser. Images, forms, ARIA, headings, contrast and focus order. No uploads."
+  alpine={false}
+>
+  <div class="px-8 py-10 lg:px-8 max-w-[1440px] mx-auto">
+
+    <div class="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <div>
+        <Breadcrumbs tool="Accessibility Checker" category="Code & Web" />
+        <h1 class="mt-3 text-2xl font-semibold tracking-tight text-slate-900">Accessibility Checker</h1>
+        <p class="mt-1 text-sm text-slate-500">Audit markup against 20 WCAG rules — in your browser, nothing uploaded.</p>
+      </div>
+      <HelpfulButton toolKey="accessibility-checker" />
+    </div>
+
+    <div class="grid grid-cols-1 gap-8 lg:grid-cols-12">
+
+      <div class="lg:col-span-8">
+        <div class="rounded-md border border-slate-200 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+
+          <!-- Input mode tabs -->
+          <div role="tablist" aria-label="Input mode" class="mb-4 flex gap-1 border-b border-slate-200">
+            <button role="tab" id="tab-paste" aria-controls="panel-paste" aria-selected="true"
+              class="a11y-tab -mb-px border-b-2 border-purple-500 px-4 py-2 text-sm font-medium text-purple-700">
+              Paste HTML
+            </button>
+            <button role="tab" id="tab-file" aria-controls="panel-file" aria-selected="false" tabindex="-1"
+              class="a11y-tab -mb-px border-b-2 border-transparent px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-700">
+              Drop a file
+            </button>
+            <button role="tab" id="tab-jsx" aria-controls="panel-jsx" aria-selected="false" tabindex="-1"
+              class="a11y-tab -mb-px border-b-2 border-transparent px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-700">
+              JSX / Astro
+            </button>
+          </div>
+
+          <div role="tabpanel" id="panel-paste" aria-labelledby="tab-paste">
+            <label for="a11yInput" class="mb-1.5 block text-xs font-medium text-slate-600">HTML markup</label>
+            <textarea id="a11yInput" rows="14" spellcheck="false" placeholder="Paste a page or a fragment…"
+              class="w-full resize-y rounded-md border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-xs text-slate-800 focus:border-purple-400 focus:outline-none"></textarea>
+          </div>
+
+          <div role="tabpanel" id="panel-file" aria-labelledby="tab-file" hidden>
+            <FileDropZone
+              id="a11yDrop"
+              accept=".html,.htm"
+              prompt="Drop an .html file here"
+              hint="Parsed in this tab — never uploaded"
+              label="Drop an HTML file or click to browse"
+            />
+          </div>
+
+          <div role="tabpanel" id="panel-jsx" aria-labelledby="tab-jsx" hidden>
+            <label for="a11yJsxInput" class="mb-1.5 block text-xs font-medium text-slate-600">JSX or Astro template</label>
+            <textarea id="a11yJsxInput" rows="14" spellcheck="false" placeholder="Paste a component…"
+              class="w-full resize-y rounded-md border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-xs text-slate-800 focus:border-purple-400 focus:outline-none"></textarea>
+            <p class="mt-2 text-xs text-slate-500">
+              Source scanning only. Rules needing document structure are marked
+              <span class="rounded bg-amber-100 px-1 py-0.5 font-medium text-amber-800">approx</span>
+              — conditionals and loops can hide the real tree.
+            </p>
+          </div>
+
+          <!-- Engine toggle + run -->
+          <div class="mt-5 flex flex-wrap items-end justify-between gap-4 border-t border-slate-100 pt-5">
+            <fieldset>
+              <legend class="mb-1.5 text-xs font-medium text-slate-600">Engine</legend>
+              <div class="flex gap-1 rounded-lg border border-slate-200 p-0.5">
+                <label class="cursor-pointer">
+                  <input type="radio" name="a11yEngine" value="both" checked class="peer sr-only">
+                  <span class="block rounded-md px-3 py-1.5 text-xs text-slate-600 peer-checked:bg-purple-50 peer-checked:font-medium peer-checked:text-purple-700">Both</span>
+                </label>
+                <label class="cursor-pointer">
+                  <input type="radio" name="a11yEngine" value="ast" class="peer sr-only">
+                  <span class="block rounded-md px-3 py-1.5 text-xs text-slate-600 peer-checked:bg-purple-50 peer-checked:font-medium peer-checked:text-purple-700">Source</span>
+                </label>
+                <label class="cursor-pointer">
+                  <input type="radio" name="a11yEngine" value="dom" class="peer sr-only">
+                  <span class="block rounded-md px-3 py-1.5 text-xs text-slate-600 peer-checked:bg-purple-50 peer-checked:font-medium peer-checked:text-purple-700">DOM</span>
+                </label>
+              </div>
+            </fieldset>
+
+            <div class="flex items-center gap-2">
+              <button id="a11yClearBtn" type="button"
+                class="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:border-purple-300">Clear</button>
+              <button id="a11yRunBtn" type="button"
+                class="rounded-lg bg-gradient-to-br from-indigo-500 to-purple-500 px-5 py-2.5 text-sm font-medium text-white hover:opacity-90">
+                Run check
+              </button>
+            </div>
+          </div>
+
+          <!-- Summary -->
+          <div id="a11ySummary" hidden class="mt-6 border-t border-slate-100 pt-6">
+            <div class="flex flex-wrap items-center gap-6">
+              <div>
+                <div class="text-3xl font-semibold tracking-tight text-slate-900"><span id="a11yScore">—</span><span class="text-lg text-slate-400">/100</span></div>
+                <div class="text-xs text-slate-500">weighted score</div>
+              </div>
+              <dl class="flex gap-5 text-sm">
+                <div><dt class="text-xs text-slate-500">Errors</dt><dd id="a11yErrCount" class="text-lg font-semibold text-rose-600">0</dd></div>
+                <div><dt class="text-xs text-slate-500">Warnings</dt><dd id="a11yWarnCount" class="text-lg font-semibold text-amber-600">0</dd></div>
+                <div><dt class="text-xs text-slate-500">Notices</dt><dd id="a11yNoticeCount" class="text-lg font-semibold text-sky-600">0</dd></div>
+              </dl>
+              <button id="a11yExportBtn" type="button"
+                class="ml-auto rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:border-purple-300">Export JSON</button>
+            </div>
+            <p class="mt-3 text-xs text-slate-500">
+              The score weights errors above warnings. Notices report what could not be
+              checked from this markup, so they do not reduce it.
+            </p>
+          </div>
+
+          <div id="a11yResults" class="mt-6 space-y-6" aria-live="polite"></div>
+
+          <p id="a11yEmpty" hidden class="mt-6 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+            No issues found by the rules that could run. Automated checks catch roughly a
+            third of accessibility problems — test with a keyboard and a screen reader too.
+          </p>
+        </div>
+      </div>
+
+      <aside class="lg:col-span-4 space-y-6">
+        <QuickTips tips={tips} />
+        <div class="rounded-md border border-slate-200 bg-white/80 p-5 text-xs text-slate-500 shadow-sm">
+          <p class="font-medium text-slate-700">Runs locally</p>
+          <p class="mt-1">Your markup is parsed and analysed in this browser tab. It is never uploaded, stored or sent anywhere.</p>
+        </div>
+      </aside>
+
+      <div class="lg:col-span-8">
+        <FAQAccordion items={faq} />
+      </div>
+    </div>
+  </div>
+</MainLayout>
+
+<script>
+  import { a11yCheck, toJson, RULE_BY_ID, type Issue, type Engine, type SourceKind } from '@/lib/a11y/a11y-check';
+  import { wireDropZone } from '@/lib/file-dropzone';
+
+  const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+
+  const tabs = Array.from(document.querySelectorAll<HTMLButtonElement>('.a11y-tab'));
+  const panels: Record<string, HTMLElement> = {
+    'tab-paste': $('panel-paste'),
+    'tab-file': $('panel-file'),
+    'tab-jsx': $('panel-jsx'),
+  };
+  let activeTab = 'tab-paste';
+  let droppedSource = '';
+  let droppedName = '';
+  let lastJson = '';
+
+  function selectTab(id: string) {
+    activeTab = id;
+    for (const t of tabs) {
+      const on = t.id === id;
+      t.setAttribute('aria-selected', String(on));
+      t.tabIndex = on ? 0 : -1;
+      t.classList.toggle('border-purple-500', on);
+      t.classList.toggle('text-purple-700', on);
+      t.classList.toggle('font-medium', on);
+      t.classList.toggle('border-transparent', !on);
+      t.classList.toggle('text-slate-500', !on);
+      panels[t.id].hidden = !on;
+    }
+  }
+
+  for (const t of tabs) {
+    t.addEventListener('click', () => selectTab(t.id));
+    // Arrow-key tab navigation, per the ARIA tabs pattern.
+    t.addEventListener('keydown', (e) => {
+      const i = tabs.indexOf(t);
+      let next = -1;
+      if (e.key === 'ArrowRight') next = (i + 1) % tabs.length;
+      else if (e.key === 'ArrowLeft') next = (i - 1 + tabs.length) % tabs.length;
+      else if (e.key === 'Home') next = 0;
+      else if (e.key === 'End') next = tabs.length - 1;
+      if (next === -1) return;
+      e.preventDefault();
+      selectTab(tabs[next].id);
+      tabs[next].focus();
+    });
+  }
+
+  wireDropZone('a11yDrop', {
+    onFile: async (file: File) => {
+      droppedSource = await file.text();
+      droppedName = file.name;
+    },
+    onClear: () => { droppedSource = ''; droppedName = ''; },
+    typeLabel: () => 'HTML file',
+  });
+
+  function currentInput(): { source: string; kind: SourceKind; label: string } {
+    if (activeTab === 'tab-jsx') {
+      return { source: $<HTMLTextAreaElement>('a11yJsxInput').value, kind: 'jsx', label: 'pasted component' };
+    }
+    if (activeTab === 'tab-file') {
+      return { source: droppedSource, kind: 'html', label: droppedName || 'dropped file' };
+    }
+    return { source: $<HTMLTextAreaElement>('a11yInput').value, kind: 'html', label: 'pasted markup' };
+  }
+
+  function selectedEngines(): Engine[] {
+    const v = (document.querySelector('input[name="a11yEngine"]:checked') as HTMLInputElement)?.value;
+    return v === 'ast' ? ['ast'] : v === 'dom' ? ['dom'] : ['ast', 'dom'];
+  }
+
+  const SEV_STYLE: Record<string, { label: string; chip: string; bar: string }> = {
+    err:    { label: 'Error',   chip: 'bg-rose-100 text-rose-800',   bar: 'border-rose-200' },
+    warn:   { label: 'Warning', chip: 'bg-amber-100 text-amber-800', bar: 'border-amber-200' },
+    notice: { label: 'Notice',  chip: 'bg-sky-100 text-sky-800',     bar: 'border-sky-200' },
+  };
+
+  function esc(s: string): string {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function renderIssue(i: Issue): string {
+    const st = SEV_STYLE[i.sev];
+    const meta = RULE_BY_ID[i.ruleId];
+    const approx = i.confidence === 'approx'
+      ? '<span class="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800" title="Inferred without resolving document structure — verify by hand">approx</span>'
+      : '';
+    return `
+      <li class="rounded-lg border ${st.bar} bg-white p-4">
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="rounded px-1.5 py-0.5 text-[10px] font-medium ${st.chip}">${st.label}</span>
+          <span class="font-mono text-xs text-slate-500">${esc(i.ruleId)}</span>
+          <span class="text-[10px] text-slate-400">WCAG ${esc(meta?.wcag ?? '')}</span>
+          ${approx}
+          <span class="ml-auto font-mono text-[10px] text-slate-400">${esc(i.engine)}</span>
+        </div>
+        <p class="mt-2 text-sm text-slate-800">${esc(i.msg)}</p>
+        <p class="mt-1 text-sm text-slate-600"><span class="font-medium text-slate-700">Fix:</span> ${esc(i.fix)}</p>
+        <p class="mt-2 font-mono text-xs text-slate-400">${esc(i.sel)}</p>
+      </li>`;
+  }
+
+  function run() {
+    const { source, kind, label } = currentInput();
+    const results = $('a11yResults');
+    const summary = $('a11ySummary');
+    const empty = $('a11yEmpty');
+
+    if (!source.trim()) {
+      results.innerHTML = '<p class="text-sm text-slate-500">Nothing to check yet — paste markup or drop a file.</p>';
+      summary.hidden = true;
+      empty.hidden = true;
+      return;
+    }
+
+    const result = a11yCheck(source, { kind, engines: selectedEngines() });
+    lastJson = toJson(result, { source: label, kind });
+
+    $('a11yScore').textContent = String(result.summary.score);
+    $('a11yErrCount').textContent = String(result.summary.err);
+    $('a11yWarnCount').textContent = String(result.summary.warn);
+    $('a11yNoticeCount').textContent = String(result.summary.notice);
+    summary.hidden = false;
+
+    if (result.issues.length === 0) {
+      results.innerHTML = '';
+      empty.hidden = false;
+      return;
+    }
+    empty.hidden = true;
+
+    const groups: Array<['err' | 'warn' | 'notice', string]> = [
+      ['err', 'Errors'], ['warn', 'Warnings'], ['notice', 'Notices'],
+    ];
+    results.innerHTML = groups.map(([sev, heading]) => {
+      const list = result.issues.filter(i => i.sev === sev);
+      if (!list.length) return '';
+      return `
+        <section>
+          <h2 class="mb-2 text-sm font-semibold text-slate-700">${heading} <span class="text-slate-400">(${list.length})</span></h2>
+          <ul class="space-y-3">${list.map(renderIssue).join('')}</ul>
+        </section>`;
+    }).join('');
+  }
+
+  $('a11yRunBtn').addEventListener('click', run);
+
+  $('a11yClearBtn').addEventListener('click', () => {
+    $<HTMLTextAreaElement>('a11yInput').value = '';
+    $<HTMLTextAreaElement>('a11yJsxInput').value = '';
+    droppedSource = '';
+    droppedName = '';
+    lastJson = '';
+    $('a11yResults').innerHTML = '';
+    $('a11ySummary').hidden = true;
+    $('a11yEmpty').hidden = true;
+  });
+
+  $('a11yExportBtn').addEventListener('click', () => {
+    if (!lastJson) return;
+    const blob = new Blob([lastJson], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'accessibility-report.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+</script>

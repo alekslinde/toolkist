@@ -159,6 +159,15 @@ export const tools: Tool[] = [
   },
   // ── Code & Web ────────────────────────────────────────────────────────────
   {
+    slug: 'accessibility-checker',
+    title: 'Accessibility Checker',
+    shortTitle: 'A11y Checker',
+    description: 'Audit HTML, JSX and Astro markup against 20 WCAG 2.2 rules — images, forms, ARIA, headings, contrast and focus order. Runs in your browser.',
+    category: 'code',
+    tags: ['accessibility', 'a11y', 'WCAG', 'ARIA', 'audit', 'contrast', 'screen reader'],
+    icon: 'A11Y',
+  },
+  {
     slug: 'code-formatter',
     title: 'Code Formatter',
     shortTitle: 'Code Tools',
