@@ -1,11 +1,16 @@
 import type { Alpine } from 'alpinejs';
-import { fmtBytes, baseName, extOf } from '@/lib/utils';
-import { wireDropZone } from '@/lib/file-dropzone';
-import { placement, MIME_BY_FORMAT, type FitMode } from '@/lib/ops/image-core';
+import { fmtBytes, extOf } from '@/lib/utils';
+import { wireDropZone, wireMultiDropZone } from '@/lib/file-dropzone';
+import { imageResizeOp } from '@/lib/ops/image-resize';
+import { OpError, type ParamValues } from '@/lib/ops/types';
+import { wirePresetBar } from '@/lib/ops/param-sync';
+import { wireBatchUi, renderChainButtons, TOOL_LABELS } from '@/lib/ops/batch-ui';
+import { installGlobalHandlers, reportError, codeOf } from '@/lib/telemetry';
 
 export function imageResizer() {
   return {
     helpful: 0,
+    mode: 'single' as 'single' | 'batch',
     fileLoaded: false,
     processing: false,
     w: 800,
@@ -43,28 +48,90 @@ export function imageResizer() {
     ],
 
     init() {
+      installGlobalHandlers('image-resize');
       wireDropZone('ir-drop', {
         onFile: (file) => { this._load(file); },
         onClear: () => { this._clear(); },
         typeLabel: (file) => `${extOf(file.name).toUpperCase()} image`,
       });
+
+      const self = this as any;
+      function getParams(): ParamValues {
+        return {
+          width: parseInt(String(self.w), 10) || 1,
+          height: parseInt(String(self.h), 10) || 1,
+          fit: String(self.fit),
+          format: String(self.format),
+          padColor: String(self.padColor),
+        };
+      }
+      function applyParams(values: ParamValues) {
+        if (typeof values.width === 'number') self.w = values.width;
+        if (typeof values.height === 'number') self.h = values.height;
+        if (typeof values.fit === 'string') self.fit = values.fit;
+        if (typeof values.format === 'string') self.format = values.format;
+        if (typeof values.padColor === 'string') {
+          self.padColor = values.padColor;
+          self.padColorHex = values.padColor;
+        }
+      }
+      wirePresetBar('ir-preset', { op: imageResizeOp, getParams, applyParams });
+
+      // Batch mode shares the same geometry: one controller, one file list,
+      // zip-or-single downloads and a Next-step chain — the same shell every
+      // other batch tool uses. Crop stays out because it is per-file. The
+      // controller also collects any chained handoff into its list.
+      const from = sessionStorage.getItem('chain-from');
+      const batch = wireBatchUi('irb', { op: imageResizeOp as never, getParams });
+      wireMultiDropZone('ir-batch-drop', { onFiles: (f) => batch.add(f) });
+
+      // A handed-over file lands in the batch list above; the first is also
+      // loaded into the single-file crop view so a one-file chain starts
+      // where it should. Several files switch straight to batch mode.
+      const incoming = batch.files();
+      if (incoming.length) {
+        if (incoming.length > 1) self.mode = 'batch';
+        this._load(
+          incoming[0],
+          `Carried over${from ? ` from ${TOOL_LABELS[from] ?? from}` : ''}${incoming.length > 1 ? ` — first of ${incoming.length} files shown for cropping` : ''} — drag thumbnail to crop, then Resize & Download.`,
+        );
+      }
+    },
+
+    /** Return to single mode and re-measure the thumbnail: a load that
+     *  happened while hidden (multi-file handoff) leaves a 0-size canvas,
+     *  and nothing else re-runs the sizing on reveal. */
+    toSingle() {
+      this.mode = 'single';
+      (this as any).$nextTick(() => requestAnimationFrame(() => this.onThumbLoad()));
     },
 
     _clear() {
       this._file = null;
       this._img = null;
       this.fileLoaded = false;
+      document.getElementById('ir-chain')?.setAttribute('hidden', '');
+      if (this.previewSrc) URL.revokeObjectURL(this.previewSrc);
       this.previewSrc = '';
       this.thumbSrc = '';
       this.origDims = '';
       this.status = '';
     },
 
-    _load(file: File) {
+    _load(file: File, notice?: string) {
       this._file = file;
+      document.getElementById('ir-chain')?.setAttribute('hidden', '');
       const reader = new FileReader();
+      reader.onerror = () => {
+        reportError('image-resize', 'IMAGE_DECODE_FAIL', { bytes: file.size, mime: file.type });
+        this._setStatus('✕ This file could not be read.', 'err');
+      };
       reader.onload = (ev) => {
         const img = new Image();
+        img.onerror = () => {
+          reportError('image-resize', 'IMAGE_DECODE_FAIL', { bytes: file.size, mime: file.type });
+          this._setStatus('✕ This image could not be decoded.', 'err');
+        };
         img.onload = () => {
           this._img = img;
           this.w = img.naturalWidth;
@@ -75,7 +142,7 @@ export function imageResizer() {
           const ext = extOf(file.name);
           this.format = ext === 'png' ? 'png' : ext === 'webp' ? 'webp' : 'jpeg';
           this.fileLoaded = true;
-          this._setStatus('Loaded — drag thumbnail to crop, then Resize & Download.', 'info');
+          this._setStatus(notice ?? 'Loaded — drag thumbnail to crop, then Resize & Download.', 'info');
           (this as any).$nextTick(() => requestAnimationFrame(() => this.onThumbLoad()));
         };
         img.src = ev.target!.result as string;
@@ -94,6 +161,9 @@ export function imageResizer() {
         dw = Math.round(this._img.naturalWidth * s);
         dh = Math.round(this._img.naturalHeight * s);
       }
+      // Hidden (batch mode): measuring now would zero a good canvas. The
+      // Single toggle re-runs this once visible again.
+      if (!dw || !dh) return;
       canvas.width = dw; canvas.height = dh;
       canvas.style.width = dw + 'px'; canvas.style.height = dh + 'px';
       this.thumbScale = this._img.naturalWidth / dw;
@@ -285,52 +355,67 @@ export function imageResizer() {
       this.processing = true;
       this.progress = 20;
       try {
-        let src: CanvasImageSource = this._img;
-        let sw = this._img.naturalWidth, sh = this._img.naturalHeight;
-
+        // Crop stays local: it is a per-file interaction, so it produces the
+        // op's *input* here rather than living in the op. Everything after
+        // that — fit geometry, backdrop, encode, naming — is the op's, so the
+        // page and batch path cannot disagree about what a fit mode means.
+        let inputBytes: Uint8Array;
+        let inputType: string;
         if (this.cropW > 4 && this.cropH > 4) {
           const cc = document.createElement('canvas');
           cc.width = this.cropW; cc.height = this.cropH;
-          cc.getContext('2d')!.drawImage(this._img, this.cropX, this.cropY, this.cropW, this.cropH, 0, 0, this.cropW, this.cropH);
-          src = cc; sw = this.cropW; sh = this.cropH;
+          const cctx = cc.getContext('2d');
+          if (!cctx) throw new OpError('CANVAS_UNAVAILABLE', 'Could not get a 2D context.');
+          cctx.drawImage(this._img, this.cropX, this.cropY, this.cropW, this.cropH, 0, 0, this.cropW, this.cropH);
+          const cropBlob = await new Promise<Blob | null>((res) => cc.toBlob(res, 'image/png'));
+          if (!cropBlob) throw new OpError('ENCODE_FAILED', 'Could not crop the image.');
+          inputBytes = new Uint8Array(await cropBlob.arrayBuffer());
+          inputType = 'image/png';
+        } else {
+          inputBytes = new Uint8Array(await this._file.arrayBuffer());
+          inputType = this._file.type;
         }
 
-        const canvas = document.createElement('canvas');
-        canvas.width = tw; canvas.height = th;
-        const ctx = canvas.getContext('2d')!;
-
-        // `pad` paints a backdrop; JPEG needs one too, since it has no alpha
-        // and would otherwise render transparent regions black.
-        if (this.fit === 'pad') {
-          ctx.fillStyle = this.padColor;
-          ctx.fillRect(0, 0, tw, th);
-        } else if (this.format === 'jpeg') {
-          ctx.fillStyle = '#ffffff';
-          ctx.fillRect(0, 0, tw, th);
-        }
-
-        // Geometry comes from the shared helper rather than being re-derived
-        // here, so resize and the op agree on what every fit mode means.
-        const { dx, dy, dw, dh } = placement(sw, sh, tw, th, this.fit as FitMode);
-        ctx.drawImage(src, dx, dy, dw, dh);
-
-        this.progress = 70;
-        const mime = MIME_BY_FORMAT[this.format] ?? 'image/png';
-        const blob = await new Promise<Blob | null>((res) =>
-          canvas.toBlob(res, mime, this.format === 'png' ? undefined : 0.92)
+        const out = await imageResizeOp.run(
+          { bytes: inputBytes, name: this._file.name, type: inputType },
+          { width: tw, height: th, fit: String(this.fit), format: String(this.format), padColor: String(this.padColor) },
+          { onProgress: (p) => { this.progress = Math.round(20 + p * 70); } },
         );
-        if (!blob) throw new Error('Encoding failed.');
 
-        const ext2 = this.format === 'jpeg' ? 'jpg' : this.format;
-        this.previewSrc = URL.createObjectURL(blob);
-        this._dl(blob, `${baseName(this._file.name)}_${tw}x${th}.${ext2}`);
+        if (this.previewSrc) URL.revokeObjectURL(this.previewSrc);
+        this.previewSrc = URL.createObjectURL(out.blob);
+        this._dl(out.blob, out.name);
         this.progress = 100;
-        this._setStatus(`✓ Resized to ${tw}×${th} (${fmtBytes(blob.size)})`, 'ok');
+        this._setStatus(`✓ Resized to ${tw}×${th} (${fmtBytes(out.blob.size)})`, 'ok');
+        this._offerChain(out.blob, out.name);
       } catch (e: any) {
-        this._setStatus('✕ ' + e.message, 'err');
+        reportError('image-resize', codeOf(e), {
+          bytes: this._file?.size,
+          mime: this._file?.type,
+        });
+        this._setStatus('✕ ' + (e?.message ?? 'Something went wrong.'), 'err');
       }
       setTimeout(() => { this.progress = 0; }, 1500);
       this.processing = false;
+    },
+
+    /** Single-mode Next step: same buttons the batch controller renders,
+     *  over this one output. Shared helper, so the two cannot disagree. */
+    _offerChain(blob: Blob, name: string) {
+      const box = document.getElementById('ir-chain');
+      if (!box) return;
+      renderChainButtons(
+        box,
+        imageResizeOp as never,
+        {
+          width: parseInt(String(this.w), 10) || 1,
+          height: parseInt(String(this.h), 10) || 1,
+          fit: String(this.fit),
+          format: String(this.format),
+          padColor: String(this.padColor),
+        },
+        [{ blob, name }],
+      );
     },
 
     _setStatus(msg: string, type: 'ok' | 'err' | 'info') { this.status = msg; this.statusType = type; },

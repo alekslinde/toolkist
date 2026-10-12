@@ -55,16 +55,40 @@ const faq = [
       <div class="lg:col-span-8">
         <div class="rounded-md border border-slate-200 bg-glass p-6 shadow-sm backdrop-blur-sm">
 
-          <!-- Drop zone -->
-          <FileDropZone
-            id="ir-drop"
-            accept="image/png,image/jpeg,image/webp"
-            prompt="Drop an image here"
-            hint="PNG · JPG · WebP accepted"
-            label="Drop image or click to browse"
-          />
+          <!-- Presets & share (geometry only; crop stays local) -->
+          <div class="flex flex-wrap items-center gap-2">
+            <select
+              id="ir-preset-select"
+              class="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs text-slate-600 focus:border-purple-400 focus:outline-none"
+            >
+              <option value="">Load preset…</option>
+            </select>
+            <button id="ir-preset-save" type="button" class="rounded-md border border-slate-200 px-2.5 py-1.5 text-xs text-slate-600 hover:border-purple-300">
+              Save preset
+            </button>
+            <button id="ir-preset-copy" type="button" class="rounded-md border border-slate-200 px-2.5 py-1.5 text-xs text-slate-600 hover:border-purple-300">
+              Copy link
+            </button>
+          </div>
 
-          <div x-show="fileLoaded" class="flex flex-col gap-5">
+          <!-- Mode: single-file crop vs multi-file batch -->
+          <div class="mt-4 flex gap-2" role="group" aria-label="Resize mode">
+            <button
+              type="button"
+              @click="toSingle()"
+              class="rounded-md border px-3 py-1.5 text-sm font-medium transition-colors"
+              :class="mode === 'single' ? 'border-purple-400 bg-purple-50 text-purple-700' : 'border-slate-200 text-slate-600 hover:border-slate-300'"
+            >Single · crop</button>
+            <button
+              type="button"
+              @click="mode = 'batch'"
+              class="rounded-md border px-3 py-1.5 text-sm font-medium transition-colors"
+              :class="mode === 'batch' ? 'border-purple-400 bg-purple-50 text-purple-700' : 'border-slate-200 text-slate-600 hover:border-slate-300'"
+            >Batch · no crop</button>
+          </div>
+
+          <!-- Geometry: shared by single and batch modes -->
+          <div class="mt-4 flex flex-col gap-5">
 
             <!-- Dimensions -->
             <div class="grid gap-4 sm:grid-cols-3">
@@ -87,6 +111,57 @@ const faq = [
                 </label>
               </div>
             </div>
+
+            <!-- Fit mode -->
+            <div>
+              <p class="mb-2 text-xs font-medium text-slate-600">Fit mode</p>
+              <div class="flex flex-wrap gap-2">
+                <template x-for="mode in ['contain','cover','stretch','pad']" :key="mode">
+                  <label
+                    class="flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors"
+                    :class="fit === mode ? 'border-purple-400 bg-purple-50 text-purple-700' : 'border-slate-200 text-slate-600 hover:border-slate-300'"
+                  >
+                    <input type="radio" class="sr-only" :value="mode" x-model="fit" />
+                    <span x-text="mode.charAt(0).toUpperCase() + mode.slice(1)"></span>
+                  </label>
+                </template>
+              </div>
+            </div>
+
+            <!-- Pad colour -->
+            <div x-show="fit === 'pad'" class="flex items-center gap-3">
+              <label class="text-xs font-medium text-slate-600">Pad colour</label>
+              <ColorPicker size="sm" x-model="padColor" @input="padColorHex = padColor" />
+              <input type="text" maxlength="7" placeholder="#ffffff"
+                class="w-28 rounded-md border border-slate-200 bg-slate-50 px-3 py-1.5 font-mono text-sm text-slate-900 focus:border-purple-400 focus:outline-none"
+                x-model="padColorHex" @input="syncPadHex($event)" />
+            </div>
+
+            <!-- Output format -->
+            <div class="max-w-xs">
+              <label class="mb-1.5 block text-xs font-medium text-slate-600" for="ir-format">Output format</label>
+              <select id="ir-format" class="w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 focus:border-purple-400 focus:outline-none" x-model="format">
+                <option value="jpeg">JPEG</option>
+                <option value="png">PNG</option>
+                <option value="webp">WebP</option>
+              </select>
+            </div>
+
+          </div>
+
+          <!-- Single mode: per-file crop, then the op -->
+          <div x-show="mode === 'single'" class="mt-4">
+
+          <!-- Drop zone -->
+          <FileDropZone
+            id="ir-drop"
+            accept="image/png,image/jpeg,image/webp,image/avif,image/bmp,.png,.jpg,.jpeg,.webp,.avif,.bmp"
+            prompt="Drop an image here"
+            hint="PNG · JPG · WebP · AVIF · BMP"
+            label="Drop image or click to browse"
+          />
+
+          <div x-show="fileLoaded" class="flex flex-col gap-5">
 
             <p x-show="origDims" class="text-xs text-slate-400" x-text="'Original: ' + origDims"></p>
 
@@ -123,46 +198,12 @@ const faq = [
                   @pointerdown="startDraw($event)"
                   @pointermove="onMove($event)"
                   @pointerup="endDraw($event)"
+                  @pointercancel="endDraw($event)"
                 ></canvas>
               </div>
 
               <p x-show="cropW > 0" class="mt-1.5 text-xs text-slate-400"
                 x-text="`Crop: ${cropW}×${cropH} px at (${cropX}, ${cropY})`"></p>
-            </div>
-
-            <!-- Fit mode -->
-            <div>
-              <p class="mb-2 text-xs font-medium text-slate-600">Fit mode</p>
-              <div class="flex flex-wrap gap-2">
-                <template x-for="mode in ['contain','cover','stretch','pad']" :key="mode">
-                  <label
-                    class="flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors"
-                    :class="fit === mode ? 'border-purple-400 bg-purple-50 text-purple-700' : 'border-slate-200 text-slate-600 hover:border-slate-300'"
-                  >
-                    <input type="radio" class="sr-only" :value="mode" x-model="fit" />
-                    <span x-text="mode.charAt(0).toUpperCase() + mode.slice(1)"></span>
-                  </label>
-                </template>
-              </div>
-            </div>
-
-            <!-- Pad colour -->
-            <div x-show="fit === 'pad'" class="flex items-center gap-3">
-              <label class="text-xs font-medium text-slate-600">Pad colour</label>
-              <ColorPicker size="sm" x-model="padColor" @input="padColorHex = padColor" />
-              <input type="text" maxlength="7" placeholder="#ffffff"
-                class="w-28 rounded-md border border-slate-200 bg-slate-50 px-3 py-1.5 font-mono text-sm text-slate-900 focus:border-purple-400 focus:outline-none"
-                x-model="padColorHex" @input="syncPadHex($event)" />
-            </div>
-
-            <!-- Output format -->
-            <div class="max-w-xs">
-              <label class="mb-1.5 block text-xs font-medium text-slate-600">Output format</label>
-              <select class="w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 focus:border-purple-400 focus:outline-none" x-model="format">
-                <option value="jpeg">JPEG</option>
-                <option value="png">PNG</option>
-                <option value="webp">WebP</option>
-              </select>
             </div>
 
             <!-- Progress -->
@@ -197,6 +238,42 @@ const faq = [
               </div>
             </div>
 
+            <!-- Chain: what this output can feed into next -->
+            <div id="ir-chain" hidden class="mt-4 flex flex-wrap items-center justify-center gap-2"></div>
+
+          </div>
+          </div>
+
+          <!-- Batch mode: same geometry, no crop -->
+          <div x-show="mode === 'batch'" class="mt-4">
+            <p class="mb-4 text-xs text-slate-400">Batch resizes every file with the same settings above. Crop is single-file only — switch to Single to crop.</p>
+
+            <FileDropZone
+              id="ir-batch-drop"
+              variant="multi"
+              accept="image/png,image/jpeg,image/webp,image/avif,image/bmp,.png,.jpg,.jpeg,.webp,.avif,.bmp"
+              prompt="Drop images here"
+              hint="PNG · JPG · WebP · AVIF · BMP · one or many"
+              label="Drop images or click to browse"
+            />
+
+            <!-- Selected files -->
+            <div id="irb-count" class="mb-2 mt-4 text-xs text-slate-500"></div>
+            <div id="irb-list" class="mb-5 flex max-h-56 flex-col gap-1.5 overflow-y-auto"></div>
+
+            <!-- Action button — always visible, disabled until a file loads -->
+            <button id="irb-run"
+              class="mt-6 w-full rounded-md bg-accent hover:bg-accent-hover px-6 py-3 text-sm font-semibold text-white transition-colors disabled:opacity-50"
+              disabled
+            >
+              Resize &amp; Download
+            </button>
+
+            <p id="irb-progress" class="mt-3 text-center text-xs tabular-nums text-slate-500"></p>
+            <p id="irb-status" class="status mt-2 text-center text-sm"></p>
+
+            <!-- Chain: what this output can feed into next -->
+            <div id="irb-chain" hidden class="mt-4 flex flex-wrap items-center justify-center gap-2"></div>
           </div>
         </div>
       </div>
@@ -214,7 +291,7 @@ const faq = [
       <div class="mx-auto max-w-2xl">
         <h2 class="mb-4 text-lg font-semibold text-slate-900">About Image Resizer</h2>
         <p class="mb-8 text-sm leading-relaxed text-slate-600">
-          Resize any image to exact pixel dimensions in your browser. Choose from four fit modes — Contain (letterbox with transparency), Cover (crop and fill), Stretch (distort to exact size), or Pad (letterbox with a custom fill colour). Download the result as JPEG, PNG or WebP. All processing happens locally in your browser using the Canvas API.
+          Resize any image to exact pixel dimensions in your browser. Choose from four fit modes — Contain (letterbox with transparency), Cover (crop and fill), Stretch (distort to exact size), or Pad (letterbox with a custom fill colour). Download the result as JPEG, PNG or WebP. Single mode adds a draggable crop; batch mode resizes many files with the same settings. All processing happens locally in your browser using the Canvas API.
         </p>
         <FAQAccordion items={faq} />
         <div class="mt-10 text-xs leading-relaxed text-slate-400">

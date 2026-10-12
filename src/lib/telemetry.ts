@@ -167,6 +167,10 @@ export function codeOf(e: unknown): ErrorCode {
   return 'UNKNOWN';
 }
 
+/** Tools with global handlers installed. Module-level so re-setup on a
+ * View Transition does not stack duplicate window listeners. */
+const installedTools = new Set<string>();
+
 /**
  * Install global handlers. Uncaught errors report only that something failed
  * on a given tool — the message and stack are deliberately discarded, since a
@@ -174,6 +178,10 @@ export function codeOf(e: unknown): ErrorCode {
  */
 export function installGlobalHandlers(tool: string): void {
   if (!telemetryEnabled()) return;
+  // Guard against double-install on View-Transition revisits: each call adds
+  // two window listeners, so a second setup would double-report every UNCAUGHT.
+  if (installedTools.has(tool)) return;
+  installedTools.add(tool);
 
   window.addEventListener('error', () => {
     send({ kind: 'error', tool, code: 'UNCAUGHT' });
