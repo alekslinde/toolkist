@@ -121,7 +121,7 @@ const faq = [
 
 <script>
   import { isValidHex, mixColors } from '@/lib/color';
-  import { toCssVars, type ColorToken } from '@/lib/color-tokens';
+  import { toCssVars, toJson, type ColorToken } from '@/lib/color-tokens';
   import { copyWithFeedback } from '@/lib/utils';
 
   let tintsData: string[] = [], shadesData: string[] = [];
@@ -226,11 +226,11 @@ const faq = [
       void copyWithFeedback(this, toCssVars(tokensOf(shadesData), 'shade'));
     });
     (document.getElementById('tintsJSONBtn') as HTMLButtonElement).addEventListener('click', function (this: HTMLButtonElement) {
-      const obj = {
-        tints:  tintsData.map(h  => h.toUpperCase()),
-        shades: shadesData.map(h => h.toUpperCase()),
-      };
-      void copyWithFeedback(this, JSON.stringify(obj, null, 2));
+      const tokens: ColorToken[] = [
+        ...tokensOf(tintsData).map((t) => ({ name: `tint-${t.name}`, hex: t.hex })),
+        ...tokensOf(shadesData).map((t) => ({ name: `shade-${t.name}`, hex: t.hex })),
+      ];
+      void copyWithFeedback(this, toJson(tokens));
     });
 
     render();
