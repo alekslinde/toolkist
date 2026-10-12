@@ -317,6 +317,44 @@ describe('page markup matches the declarations', () => {
   });
 });
 
+describe('resize page markup matches the declarations', () => {
+  // Same drift risk as convert: the page renders its own <select> and fit
+  // radios rather than generating them from the schema.
+  const RESIZE_PAGE = readFileSync(
+    join(import.meta.dirname, '../../pages/tools/image-resize.astro'),
+    'utf8',
+  );
+
+  it('offers exactly the formats the op declares', () => {
+    const spec = imageResizeOp.params.format;
+    if (spec.kind !== 'enum') throw new Error('format should be an enum');
+
+    const select = RESIZE_PAGE.slice(RESIZE_PAGE.indexOf('id="ir-format"'));
+    const block = select.slice(0, select.indexOf('</select>'));
+    const inMarkup = [...block.matchAll(/<option value="([a-z]+)"/g)].map((m) => m[1]).sort();
+
+    expect(inMarkup).toEqual(spec.of.map((o) => o.value).sort());
+  });
+
+  it('offers exactly the fit modes the op declares', () => {
+    const spec = imageResizeOp.params.fit;
+    if (spec.kind !== 'enum') throw new Error('fit should be an enum');
+
+    for (const o of spec.of) {
+      expect(RESIZE_PAGE).toContain(`'${o.value}'`);
+    }
+  });
+
+  it('wires the shared batch shell for batch mode', () => {
+    // Batch mode is a second consumer of the same op: without these ids the
+    // controller silently drops its affordances (a missing *-chain simply
+    // never offers Next, a missing *-run never runs).
+    for (const id of ['ir-batch-drop', 'irb-list', 'irb-count', 'irb-progress', 'irb-status', 'irb-run', 'irb-chain']) {
+      expect(RESIZE_PAGE).toContain(`id="${id}"`);
+    }
+  });
+});
+
 describe('naming helpers', () => {
   it('strips only the final extension', () => {
     expect(stem('photo.png')).toBe('photo');

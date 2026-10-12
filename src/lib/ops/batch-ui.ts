@@ -5,8 +5,9 @@ import { handoff, collectHandoff } from './handoff';
 import { fmtBytes } from '@/lib/utils';
 import { reportError, reportFriction } from '@/lib/telemetry';
 
-/** Display names for the chain buttons. */
-const TOOL_LABELS: Record<string, string> = {
+/** Display names for the chain buttons. Shared with single-mode pages that
+ *  offer their own Next step without the batch controller. */
+export const TOOL_LABELS: Record<string, string> = {
   'image-compress': 'Compress',
   'image-resize': 'Resize',
   'image-convert': 'Convert',
@@ -14,6 +15,52 @@ const TOOL_LABELS: Record<string, string> = {
   'metadata-cleaner': 'Strip metadata',
   'font-converter': 'Convert font',
 };
+
+/**
+ * Render "Next:" chain buttons into `container` for `outputs` produced with
+ * `params`. Shared by the batch controller below and by single-mode pages
+ * that offer a Next step without a batch (image-resize, whose crop is
+ * per-file). The graph comes from the op declarations, so it cannot go stale.
+ */
+export function renderChainButtons(
+  container: HTMLElement,
+  fromOp: Op<ParamValues>,
+  params: ParamValues,
+  outputs: { blob: Blob; name: string }[],
+): void {
+  container.innerHTML = '';
+  container.hidden = true;
+
+  if (outputs.length === 0) return;
+
+  const next = chainableTo(fromOp, params, OPS, outputs[0].blob.type || undefined);
+  if (next.length === 0) return;
+
+  const label = document.createElement('span');
+  label.className = 'text-xs text-slate-500';
+  label.textContent = 'Next:';
+  container.appendChild(label);
+
+  for (const target of next) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className =
+      'rounded-full border border-slate-200 px-3 py-1 text-xs text-slate-600 transition-colors hover:border-purple-300 hover:text-purple-600';
+    btn.textContent = TOOL_LABELS[target.id] ?? target.id;
+    btn.addEventListener('click', () => {
+      // Hand the produced files to the next tool as real File objects, so it
+      // starts from the output rather than the original input.
+      const carried = outputs.map(
+        (o) => new File([o.blob], o.name, { type: o.blob.type }),
+      );
+      sessionStorage.setItem('chain-from', fromOp.id);
+      void handoff(target.id, carried);
+    });
+    container.appendChild(btn);
+  }
+
+  container.hidden = false;
+}
 
 /**
  * The batch controller shared by every op-backed tool page.
@@ -131,39 +178,14 @@ export function wireBatchUi(prefix: string, opts: BatchUiOptions): BatchUi {
    */
   function offerChain(summary: BatchSummary, params: ParamValues) {
     if (!chainEl) return;
-    chainEl.innerHTML = '';
-    chainEl.hidden = true;
-
-    const outputs = summary.items.filter((i) => i.ok && i.output);
-    if (outputs.length === 0) return;
-
-    const next = chainableTo(opts.op, params, OPS, outputs[0].output!.blob.type || undefined);
-    if (next.length === 0) return;
-
-    const label = document.createElement('span');
-    label.className = 'text-xs text-slate-500';
-    label.textContent = 'Next:';
-    chainEl.appendChild(label);
-
-    for (const target of next) {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className =
-        'rounded-full border border-slate-200 px-3 py-1 text-xs text-slate-600 transition-colors hover:border-purple-300 hover:text-purple-600';
-      btn.textContent = TOOL_LABELS[target.id] ?? target.id;
-      btn.addEventListener('click', () => {
-        // Hand the produced files to the next tool as real File objects, so it
-        // starts from the output rather than the original input.
-        const carried = outputs.map(
-          (i) => new File([i.output!.blob], i.output!.name, { type: i.output!.blob.type }),
-        );
-        sessionStorage.setItem('chain-from', opts.op.id);
-        void handoff(target.id, carried);
-      });
-      chainEl.appendChild(btn);
-    }
-
-    chainEl.hidden = false;
+    renderChainButtons(
+      chainEl,
+      opts.op,
+      params,
+      summary.items
+        .filter((i) => i.ok && i.output)
+        .map((i) => ({ blob: i.output!.blob, name: i.output!.name })),
+    );
   }
 
   const api: BatchUi = {
