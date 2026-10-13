@@ -14,7 +14,7 @@ function tokenize(s: string): string[] {
 }
 
 /**
- * LCS-based word diff. Fine for prompt-sized strings (typically < 5k tokens).
+ * LCS-based word diff. Fine for prompt-sized strings (typically under a few thousand tokens).
  */
 export function wordDiff(original: string, compressed: string): DiffSeg[] {
   const a = tokenize(original);
@@ -65,7 +65,11 @@ export function wordDiff(original: string, compressed: string): DiffSeg[] {
 }
 
 function escHtml(s: string): string {
-  return s.replace(/&/g, "&").replace(/</g, "<").replace(/>/g, ">");
+  return s
+    .replace(/&/g, "&")
+    .replace(/</g, "<")
+    .replace(/>/g, ">")
+    .replace(/"/g, """);
 }
 
 /** Render wordDiff segments as HTML (removed = strike, added = highlight). */
