@@ -66,10 +66,10 @@ export function wordDiff(original: string, compressed: string): DiffSeg[] {
 
 function escHtml(s: string): string {
   return s
-    .replace(/&/g, "&")
-    .replace(/</g, "<")
-    .replace(/>/g, ">")
-    .replace(/"/g, """);
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 /** Render wordDiff segments as HTML (removed = strike, added = highlight). */

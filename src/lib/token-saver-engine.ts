@@ -108,9 +108,15 @@ export class Defluffer {
       text = text.replaceAll(`PROT${index}PROT`, () => item);
     });
 
+    // Final whitespace tidy, but never inside fenced/inline code blocks
     return text
-      .replace(/\s+/g, ' ')
-      .replace(/\s+([.,?!;:])/g, '$1')
+      .split(/(```[\s\S]*?```|`[^`]+`)/g)
+      .map((part, idx) =>
+        idx % 2 === 1
+          ? part
+          : part.replace(/\s+/g, ' ').replace(/\s+([.,?!;:])/g, '$1')
+      )
+      .join('')
       .trim();
   }
 }

@@ -110,7 +110,7 @@ const faq = [
               class="min-h-[6rem] w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-xs text-slate-700 whitespace-pre-wrap break-words">
               <span class="output-placeholder text-slate-400">Your compressed prompt will appear here…</span>
             </div>
-            <div id="diffPanel" class="mt-2 hidden min-h-[4rem] w-full rounded-lg border border-dashed border-slate-200 bg-white px-3 py-2 font-mono text-xs text-slate-700 whitespace-pre-wrap break-words"></div>
+            <div id="diffPanel" class="mt-2 hidden min-h-[4rem] w-full rounded-lg border border-dashed border-slate-200 bg-slate-50 px-3 py-2 font-mono text-xs text-slate-700 whitespace-pre-wrap break-words"></div>
           </div>
 
           <div id="feedbackArea" class="hidden mt-3">
@@ -297,7 +297,7 @@ const faq = [
   (document.getElementById('sumLeaves') as HTMLElement).textContent = mwhStripped;
 
   function escHtml(s: string): string {
-    return s.replace(/&/g, '&').replace(/</g, '<').replace(/>/g, '>');
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
 
   const resultsBody = document.getElementById('resultsBody') as HTMLElement;

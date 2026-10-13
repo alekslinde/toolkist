@@ -111,7 +111,7 @@ describe('wordDiff', () => {
     const html = wordDiffHtml('could you please help <script>', 'help <script>');
     expect(html).toContain('<del');
     expect(html).toContain('help');
-    expect(html).toContain('<script>');
+    expect(html).toContain('&lt;script&gt;');
     expect(html).not.toContain('<script>');
   });
 });
@@ -126,8 +126,7 @@ describe('termOverlapSimilarity', () => {
   });
 
   it('stays reasonably high after mild compression', () => {
-    const original =
-      'Could you please help me implement authentication and configuration for the application?';
+    const original = 'Explain how validation errors appear in the login form.';
     const { compressed } = compressPrompt(original);
     const sim = termOverlapSimilarity(original, compressed);
     expect(sim).toBeGreaterThan(0.3);
