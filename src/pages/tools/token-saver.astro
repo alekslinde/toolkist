@@ -7,14 +7,14 @@ import ToolSEO from '@/components/ToolSEO.astro';
 
 const tips = [
   { heading: 'Phrase collapsing', body: 'Verbose filler like "could you please help me with" is removed or shortened to a tight equivalent.' },
-  { heading: 'Synonym compression', body: 'Common long words — "application", "configuration", "authentication" — are swapped for their abbreviated forms.' },
+  { heading: 'Synonym compression', body: 'Common long words — "application", "configuration", "authentication" — are swapped for their abbreviated forms. Ambiguous nouns (token, error, message…) are preserved.' },
   { heading: 'Code is protected', body: 'Content inside backtick code blocks is never touched; only the surrounding prose is compressed.' },
   { heading: 'Domain packs', body: 'Enable optional vocab packs in the compress section for deeper abbreviation in SQL, React, DevOps, UI, or UX contexts.' },
 ];
 
 const faq = [
   { question: 'Will the compressed prompt give the same result?', answer: 'For most technical prompts, yes. The compressions use abbreviations and phrase-collapses that LLMs handle natively. Highly nuanced or creative prompts may benefit from lighter compression.' },
-  { question: 'How are token savings estimated?', answer: 'Token counts are estimated as characters ÷ 3.5 (typical for abbreviated technical English). Exact counts vary by model tokenizer; treat them as guidance, not billing truth.' },
+  { question: 'How are token savings estimated?', answer: 'Token counts use the o200k_base encoding (GPT-4o / GPT-4.1 / o-series / GPT-5) via gpt-tokenizer, running fully in your browser.' },
   { question: 'Is anything sent to a server?', answer: 'No. All compression runs entirely in your browser. Your prompt text never leaves your device.' },
   { question: 'What is the environmental impact calculation based on?', answer: 'A rough estimate of ~0.001 mWh per 1,000 tokens for GPT-4-class inference, 0.021 kg CO₂/kWh for the grid, and a tree absorbing ~21 kg CO₂/year.' },
 ];
@@ -85,6 +85,10 @@ const faq = [
               <input type="checkbox" id="liveCompress" class="h-3 w-3 accent-purple-500" checked />
               Live compress
             </label>
+            <label class="flex cursor-pointer items-center gap-1.5 text-xs text-slate-500">
+              <input type="checkbox" id="showDiff" class="h-3 w-3 accent-purple-500" />
+              Show diff
+            </label>
           </div>
           <div id="similarityWarn" class="mb-3 hidden rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
             <span class="font-medium">Low term overlap</span> — compression may have dropped important wording. Review the output before use.
@@ -106,6 +110,7 @@ const faq = [
               class="min-h-[6rem] w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-xs text-slate-700 whitespace-pre-wrap break-words">
               <span class="output-placeholder text-slate-400">Your compressed prompt will appear here…</span>
             </div>
+            <div id="diffPanel" class="mt-2 hidden min-h-[4rem] w-full rounded-lg border border-dashed border-slate-200 bg-white px-3 py-2 font-mono text-xs text-slate-700 whitespace-pre-wrap break-words"></div>
           </div>
 
           <div id="feedbackArea" class="hidden mt-3">
@@ -236,6 +241,8 @@ const faq = [
   .savings-pct.high { background: #d1fae5; color: #065f46; }
   .savings-pct.mid  { background: #fef3c7; color: #92400e; }
   .savings-pct.low  { background: #f1f5f9; color: #64748b; }
+  .ts-diff-rm { text-decoration: line-through; color: #be123c; background: #fff1f2; border-radius: 2px; }
+  .ts-diff-add { text-decoration: none; color: #047857; background: #ecfdf5; border-radius: 2px; }
 </style>
 
 <script>
@@ -247,6 +254,7 @@ const faq = [
     estimateTokens,
     termOverlapSimilarity,
     CHARS_PER_TOKEN,
+    wordDiffHtml,
   } from '@/lib/token-saver';
 
   function getActivePackIds(): string[] {
@@ -377,6 +385,8 @@ const faq = [
   const btnClearEl = document.getElementById('btnClear') as HTMLButtonElement;
   const similarityWarn = document.getElementById('similarityWarn') as HTMLElement;
   const liveToggle = document.getElementById('liveCompress') as HTMLInputElement;
+  const showDiffEl = document.getElementById('showDiff') as HTMLInputElement;
+  const diffPanel = document.getElementById('diffPanel') as HTMLElement;
 
   const PLACEHOLDER = 'Your compressed prompt will appear here…';
   const SIM_THRESHOLD = 0.35;
@@ -398,6 +408,8 @@ const faq = [
       setCount(outputCnt, '');
       badge.style.display = 'none';
       similarityWarn.classList.add('hidden');
+      diffPanel.classList.add('hidden');
+      diffPanel.innerHTML = '';
       return;
     }
 
@@ -407,6 +419,14 @@ const faq = [
     setCount(outputCnt, result);
     savingsPctEl.textContent = pct + '%';
     badge.style.display = 'flex';
+
+    if (showDiffEl.checked) {
+      diffPanel.innerHTML = wordDiffHtml(raw, result);
+      diffPanel.classList.remove('hidden');
+    } else {
+      diffPanel.classList.add('hidden');
+      diffPanel.innerHTML = '';
+    }
 
     const sim = termOverlapSimilarity(raw, result);
     similarityWarn.classList.toggle('hidden', sim >= SIM_THRESHOLD);
@@ -436,6 +456,14 @@ const faq = [
     if (liveToggle.checked) runCompress(false);
   });
 
+  showDiffEl.addEventListener('change', () => {
+    if (inputEl.value.trim()) runCompress(false);
+    else {
+      diffPanel.classList.add('hidden');
+      diffPanel.innerHTML = '';
+    }
+  });
+
   btnCompressEl.addEventListener('click', () => runCompress(true));
 
   btnClearEl.addEventListener('click', () => {
@@ -445,6 +473,8 @@ const faq = [
     setCount(outputCnt, '');
     badge.style.display = 'none';
     similarityWarn.classList.add('hidden');
+    diffPanel.classList.add('hidden');
+    diffPanel.innerHTML = '';
     (document.getElementById('feedbackArea') as HTMLElement).classList.add('hidden');
     syncPromptButtons();
   });
