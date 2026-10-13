@@ -17,7 +17,7 @@ const { heading, faq, related, keywords } = Astro.props;
     <h2 class="mb-4 text-lg font-semibold text-slate-900">{heading}</h2>
     <slot name="description" />
     <FAQAccordion items={faq} />
-    <div class="mt-10 text-xs leading-relaxed text-slate-400">
+    <div class="mt-10 text-xs leading-relaxed text-slate-500">
       {related && <p set:html={`Related: ${related}`} />}
       <p class={related ? 'mt-2' : ''}>Keywords: {keywords}</p>
     </div>

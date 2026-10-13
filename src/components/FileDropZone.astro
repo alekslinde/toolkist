@@ -29,12 +29,11 @@ interface Props {
   accept: string;
   /** 'single' (filled card) or 'multi' (permanent prompt + external list). */
   variant?: Variant;
-  /** Empty-state headline, e.g. "Drop an image here". */
+  /** Empty-state headline, e.g. "Drop an image here". Labels the file input
+      via aria-labelledby, so the two cannot drift apart. */
   prompt?: string;
   /** Empty-state sub-line, e.g. "PNG · JPG · WebP · SVG accepted". */
   hint?: string;
-  /** Accessible label for the drop target. */
-  label?: string;
   /** Hover/drag-over accent colour. Defaults to purple. */
   accent?: Accent;
   /** Extra classes on the root (e.g. layout in a dual-zone grid). */
@@ -47,7 +46,6 @@ const {
   variant = 'single',
   prompt = 'Drop a file here',
   hint = '',
-  label = 'Drop a file or click to browse',
   accent = 'purple',
   class: extraClass = '',
 } = Astro.props;
@@ -71,15 +69,17 @@ const HOVER: Record<Accent, string> = {
     HOVER[accent],
     extraClass,
   ]}
-  role="button"
-  tabindex="0"
-  aria-label={label}
 >
   <!-- Empty state -->
   <div data-dz-empty class="flex cursor-pointer flex-col items-center justify-center px-6 py-10">
-    <span class="mb-2 text-3xl text-slate-300" aria-hidden="true">↓</span>
-    <p class="text-sm font-medium text-slate-700">{prompt}</p>
-    {hint && <p class="mt-1 text-xs text-slate-400">{hint}</p>}
+    <!-- Inline SVG, not a text glyph: axe's label-in-name check reads DOM
+         text including aria-hidden nodes, so a "↓" character would never be
+         part of the labelledby name and would fail the control. -->
+    <svg class="mb-2 h-8 w-8 text-slate-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m0 0-6-6m6 6 6-6" />
+    </svg>
+    <p id={`${id}-prompt`} class="text-sm font-medium text-slate-700">{prompt}</p>
+    {hint && <p id={`${id}-hint`} class="mt-1 text-xs text-slate-500">{hint}</p>}
   </div>
 
   {/* Filled state (single variant only) */}
@@ -94,27 +94,36 @@ const HOVER: Record<Accent, string> = {
       <span class="min-w-0 flex-1">
         <span data-dz-name class="block truncate text-sm font-medium text-slate-800"></span>
         <span data-dz-meta class="block text-xs text-slate-500"></span>
-        <span class="mt-0.5 block text-[11px] text-slate-400">Drop a new file to replace</span>
+        <span class="mt-0.5 block text-[11px] text-slate-500">Drop a new file to replace</span>
       </span>
 
       <button
         type="button"
         data-dz-clear
         class="shrink-0 rounded-md border border-slate-200 bg-surface px-2.5 py-1.5 text-xs font-medium text-slate-500 transition-colors hover:border-rose-300 hover:text-rose-600"
-        aria-label="Remove file"
       >
         ✕ Clear
       </button>
     </div>
   )}
 
-  <input type="file" class="sr-only" accept={accept} multiple={multiple} data-dz-input />
+  <!-- The zone root is a plain div: the sr-only input below is the real,
+       labelled control (keyboard users operate it natively), so there is no
+       role=button whose name must mirror the visible text, and the Clear
+       button nests legally. Clicks anywhere on the zone forward to it. -->
+  <input type="file" class="sr-only" accept={accept} multiple={multiple} data-dz-input aria-labelledby={hint ? `${id}-prompt ${id}-hint` : `${id}-prompt`} />
 </div>
 
 <style>
+  /* Keyboard users operate the sr-only input natively; it is 1px, so the
+     zone draws the focus ring for it. */
+  .dz:focus-within {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
   /* Drag-over highlight — the wiring lib toggles data-dz-over on the root. */
-  .dz[data-dz-over='true'][data-dz-accent='purple'] {
-    border-color: rgb(192 132 252); /* purple-400 */
+  .dz[data-dz-over='true'][data-dz-accent='purple'] {    border-color: rgb(192 132 252); /* purple-400 */
     background-color: rgb(250 245 255 / 0.5); /* purple-50/50 */
   }
   .dz[data-dz-over='true'][data-dz-accent='blue'] {

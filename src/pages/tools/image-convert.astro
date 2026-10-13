@@ -56,7 +56,6 @@ const faq = [
             accept="image/png,image/jpeg,image/webp,image/avif,image/svg+xml,image/heic,image/heif,.heic,.heif"
             prompt="Drop images here"
             hint="PNG · JPG · WebP · AVIF · SVG · HEIC · one or many"
-            label="Drop images or click to browse"
           />
 
           <!-- Selected files -->
@@ -66,41 +65,25 @@ const faq = [
           <!-- Stats grid -->
           <div id="imgcvtStatsGrid" hidden class="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
             <div class="rounded-md bg-slate-50 p-3">
-              <p class="text-[10px] font-medium uppercase tracking-wider text-slate-400">Original size</p>
+              <p class="text-[10px] font-medium uppercase tracking-wider text-slate-500">Original size</p>
               <p id="imgcvtOrigSize" class="mt-1 text-sm font-semibold text-slate-800">—</p>
             </div>
             <div class="rounded-md bg-slate-50 p-3">
-              <p class="text-[10px] font-medium uppercase tracking-wider text-slate-400">Dimensions</p>
+              <p class="text-[10px] font-medium uppercase tracking-wider text-slate-500">Dimensions</p>
               <p id="imgcvtOrigDims" class="mt-1 text-sm font-semibold text-slate-800">—</p>
             </div>
             <div class="rounded-md bg-slate-50 p-3">
-              <p class="text-[10px] font-medium uppercase tracking-wider text-slate-400">Output size</p>
+              <p class="text-[10px] font-medium uppercase tracking-wider text-slate-500">Output size</p>
               <p id="imgcvtOutSize" class="mt-1 text-sm font-semibold text-slate-800">—</p>
             </div>
             <div class="rounded-md bg-slate-50 p-3">
-              <p class="text-[10px] font-medium uppercase tracking-wider text-slate-400">Format</p>
+              <p class="text-[10px] font-medium uppercase tracking-wider text-slate-500">Format</p>
               <p id="imgcvtOutFmtLabel" class="mt-1 text-sm font-semibold text-slate-800">—</p>
             </div>
           </div>
 
           <!-- Controls -->
           <div id="imgcvtControls" hidden class="flex flex-col gap-4">
-
-            <!-- Presets & share -->
-            <div class="flex flex-wrap items-center gap-2">
-              <select
-                id="imgcvt-preset-select"
-                class="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs text-slate-600 focus:border-purple-400 focus:outline-none"
-              >
-                <option value="">Load preset…</option>
-              </select>
-              <button id="imgcvt-preset-save" type="button" class="rounded-md border border-slate-200 px-2.5 py-1.5 text-xs text-slate-600 hover:border-purple-300">
-                Save preset
-              </button>
-              <button id="imgcvt-preset-copy" type="button" class="rounded-md border border-slate-200 px-2.5 py-1.5 text-xs text-slate-600 hover:border-purple-300">
-                Copy link
-              </button>
-            </div>
 
             <div class="grid gap-4 sm:grid-cols-2">
               <div>
@@ -123,6 +106,22 @@ const faq = [
                 <input id="imgcvtQuality" type="range" min="10" max="100" step="1" value="85"
                   class="w-full accent-purple-500" />
               </div>
+            </div>
+
+            <!-- Presets & share — after the settings they capture -->
+            <div class="flex flex-wrap items-center gap-2">
+              <select
+                id="imgcvt-preset-select"
+                class="cursor-pointer rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600 focus:border-purple-400 focus:outline-none"
+              >
+                <option value="">Load preset…</option>
+              </select>
+              <button id="imgcvt-preset-save" type="button" class="cursor-pointer rounded-md border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:border-slate-300">
+                Save preset
+              </button>
+              <button id="imgcvt-preset-copy" type="button" class="cursor-pointer rounded-md border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:border-slate-300">
+                Copy link
+              </button>
             </div>
 
           </div>
