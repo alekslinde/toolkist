@@ -14,7 +14,8 @@ export type { DiffSeg } from "./token-saver-diff";
 import { coreDictionaries } from "./token-saver-dicts";
 import { domainPacks } from "./token-saver-packs";
 import { Defluffer } from "./token-saver-engine";
-import { encode as gptEncode } from "gpt-tokenizer/encoding/o200k_base";
+// Default entry uses o200k_base (GPT-4o / GPT-4.1 / o-series / GPT-5)
+import { encode as gptEncode } from "gpt-tokenizer";
 
 /** Merge selected domain packs into a single extra-phrases map. */
 export function getActivePackPhrases(activePackIds: string[]): Record<string, string> {
