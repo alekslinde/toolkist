@@ -8,6 +8,9 @@ import {
   BENCHMARK_PROMPTS,
   getActivePackPhrases,
   domainPacks,
+  shouldPreserveToken,
+  wordDiff,
+  wordDiffHtml,
 } from './token-saver';
 
 describe('Defluffer / compressPrompt', () => {
@@ -46,15 +49,54 @@ describe('Defluffer / compressPrompt', () => {
   it('exposes all domain packs', () => {
     expect(Object.keys(domainPacks).length).toBeGreaterThanOrEqual(4);
   });
+
+  it('preserves ambiguous nouns that would become cryptic abbreviations', () => {
+    const engine = new Defluffer(coreDictionaries);
+    // "token", "error", "message" are on the preserve list — must not become tok/err/msg
+    const out = engine.compress('Validate the token and report every error in the message.');
+    expect(out.toLowerCase()).toMatch(/\btoken\b/);
+    expect(out.toLowerCase()).toMatch(/\berror\b/);
+    expect(out.toLowerCase()).toMatch(/\bmessage\b/);
+  });
+
+  it('preserves proper-case and acronyms', () => {
+    expect(shouldPreserveToken('PostgreSQL')).toBe(true);
+    expect(shouldPreserveToken('GraphQL')).toBe(true);
+    expect(shouldPreserveToken('HTTP')).toBe(true);
+    expect(shouldPreserveToken('authentication')).toBe(false);
+  });
 });
 
-describe('estimateTokens', () => {
+describe('estimateTokens (o200k)', () => {
   it('returns 0 for empty string', () => {
     expect(estimateTokens('')).toBe(0);
   });
 
-  it('scales with length', () => {
-    expect(estimateTokens('a'.repeat(35))).toBe(10);
+  it('returns a positive count for ordinary text', () => {
+    const n = estimateTokens('Hello world, how many tokens is this?');
+    expect(n).toBeGreaterThan(3);
+    expect(n).toBeLessThan(20);
+  });
+
+  it('scales roughly with longer input', () => {
+    const short = estimateTokens('hello');
+    const long = estimateTokens('hello world this is a longer sentence with more words');
+    expect(long).toBeGreaterThan(short);
+  });
+});
+
+describe('wordDiff', () => {
+  it('marks removals and keeps equals', () => {
+    const segs = wordDiff('please help me implement auth', 'help implement auth');
+    const types = segs.map((s) => s.type);
+    expect(types).toContain('remove');
+    expect(types).toContain('equal');
+  });
+
+  it('renders HTML with del/ins tags', () => {
+    const html = wordDiffHtml('could you please help', 'help');
+    expect(html).toContain('<del');
+    expect(html).toContain('help');
   });
 });
 
