@@ -7,10 +7,14 @@ export { coreDictionaries } from "./token-saver-dicts";
 export { domainPacks } from "./token-saver-packs";
 export { Defluffer } from "./token-saver-engine";
 export { BENCHMARK_PROMPTS } from "./token-saver-benchmarks";
+export { SYNONYM_PRESERVE, shouldPreserveToken } from "./token-saver-preserve";
+export { wordDiff, wordDiffHtml } from "./token-saver-diff";
+export type { DiffSeg } from "./token-saver-diff";
 
 import { coreDictionaries } from "./token-saver-dicts";
 import { domainPacks } from "./token-saver-packs";
 import { Defluffer } from "./token-saver-engine";
+import { encode as gptEncode } from "gpt-tokenizer/encoding/o200k_base";
 
 /** Merge selected domain packs into a single extra-phrases map. */
 export function getActivePackPhrases(activePackIds: string[]): Record<string, string> {
@@ -22,12 +26,20 @@ export function getActivePackPhrases(activePackIds: string[]): Record<string, st
   return out;
 }
 
-/** Rough token estimate for abbreviated technical English (post-compression). */
+/** Fallback chars-per-token when a heuristic is needed. */
 export const CHARS_PER_TOKEN = 3.5;
 
+/**
+ * Count tokens with the o200k_base encoding (GPT-4o / GPT-4.1 / o-series).
+ * Falls back to chars÷3.5 only if encoding throws (should not happen in normal use).
+ */
 export function estimateTokens(text: string, charsPerToken = CHARS_PER_TOKEN): number {
   if (!text) return 0;
-  return Math.max(0, Math.round(text.length / charsPerToken));
+  try {
+    return gptEncode(text).length;
+  } catch {
+    return Math.max(0, Math.round(text.length / charsPerToken));
+  }
 }
 
 export type CompressResult = {
