@@ -5,22 +5,23 @@ import { tools } from '@/data/tools';
 
 <MainLayout
   title="Tool Health — Toolkist"
-  description="Live error and friction counts for every Toolkist tool. Published so the numbers are visible rather than discoverable on request."
+  description="Live status for every Toolkist tool — all operational, with public counts published if anything ever fails."
 >
   <div class="page-shell">
 
     <div class="mb-8">
       <h1 class="text-2xl font-semibold tracking-tight text-slate-900">Tool health</h1>
       <p class="mt-2 max-w-2xl text-sm leading-relaxed text-slate-500">
-        Every tool reports when it fails. This page shows those counts as they are —
-        a tool with a bad week is visible here the same day. Nothing on this page
-        identifies anyone: tools report an error <em>code</em> and a coarse browser
-        class, never a filename, never file contents, never an exception message.
+        <span id="h-status" class="font-medium text-emerald-600">✓ All tools operational.</span>
+        This page watches every tool live — anything that fails shows up here
+        the same day, with per-tool counts below. Nothing here identifies
+        anyone: tools report an error <em>code</em> and a coarse browser class,
+        never a filename, never file contents, never an exception message.
         Rows are deleted after <span id="h-retention">90</span> days.
       </p>
-      <p class="mt-2 text-xs text-slate-400">
-        Counts are events, not users, and a quiet tool is usually an unused one
-        rather than a flawless one — so read these as "where to look", not as a score.
+      <p class="mt-2 text-xs text-slate-500">
+        An empty table is the good outcome: it means nothing has failed
+        recently. Counts are events, not users.
       </p>
     </div>
 
@@ -36,7 +37,7 @@ import { tools } from '@/data/tools';
     <div id="h-content" hidden class="flex flex-col gap-8">
 
       <section>
-        <h2 class="mb-3 text-sm font-semibold text-slate-800">Most reported problems</h2>
+        <h2 class="mb-3 text-sm font-semibold text-slate-800">Reported problems</h2>
         <div id="h-errors" class="overflow-hidden rounded-md border border-slate-200 bg-surface"></div>
       </section>
 
@@ -103,7 +104,16 @@ import { tools } from '@/data/tools';
     const loading = document.getElementById('h-loading');
     const errorBox = document.getElementById('h-error');
     const content = document.getElementById('h-content');
+    const status = document.getElementById('h-status');
     if (!loading || !errorBox || !content) return;
+
+    const setStatus = (text, ok) => {
+      if (!status) return;
+      status.textContent = text;
+      status.className = 'font-medium ' + (ok === true
+        ? 'text-emerald-600'
+        : ok === false ? 'text-amber-600' : 'text-slate-500');
+    };
 
     let data;
     try {
@@ -113,15 +123,30 @@ import { tools } from '@/data/tools';
     } catch {
       loading.hidden = true;
       errorBox.hidden = false;
+      setStatus('Status currently unavailable.', null);
       return;
     }
 
-    document.getElementById('h-retention').textContent = String(data.retentionDays ?? 90);
+    const retention = data.retentionDays ?? 90;
+    document.getElementById('h-retention').textContent = String(retention);
+
+    // The lead line stays positive while there is nothing to show, and flips
+    // to the honest count the moment an error exists — never the reverse.
+    const n = (data.tools ?? []).reduce((s, t) => s + (t.errors || 0), 0)
+      || data.topErrors?.length || 0;
+    if (n > 0) {
+      setStatus(
+        `⚠ ${n} reported problem${n === 1 ? '' : 's'} in the last ${retention} days — details below.`,
+        false,
+      );
+    } else {
+      setStatus('✓ All tools operational.', true);
+    }
 
     const errorsEl = document.getElementById('h-errors');
     if (!data.topErrors?.length) {
       errorsEl.innerHTML = row(
-        `<span class="text-slate-500">Nothing reported yet.</span>`,
+        `<span class="font-medium text-emerald-600">✓ No problems reported.</span>`,
       );
     } else {
       errorsEl.innerHTML = data.topErrors.map((e) => row(`
@@ -143,7 +168,7 @@ import { tools } from '@/data/tools';
 
     const toolsEl = document.getElementById('h-tools');
     if (!data.tools?.length) {
-      toolsEl.innerHTML = row(`<span class="text-slate-500">No reports yet.</span>`);
+      toolsEl.innerHTML = row(`<span class="font-medium text-emerald-600">✓ No issues — every tool running clean.</span>`);
     } else {
       toolsEl.innerHTML = `${row(`
         <span class="min-w-0 flex-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Tool</span>

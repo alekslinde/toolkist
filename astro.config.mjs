@@ -26,6 +26,14 @@ const wawoff2BindingFix = {
   enforce: 'pre',
   transform(code, id) {
     if (WAWOFF2_BINDING_RE.test(id)) {
+      // The Emscripten shell lazily requires fs/path on Node-only paths
+      // (ENVIRONMENT_IS_NODE branch, readBinary/readAsync) that never execute
+      // in the browser — every use is environment-guarded. Stubbing the calls
+      // keeps Rolldown from externalizing Node builtins (and warning about it)
+      // without touching the runtime behaviour of any live path.
+      code = code
+        .replace(/require\("fs"\)/g, 'undefined')
+        .replace(/require\("path"\)/g, 'undefined');
       return { code: code + '\nif(typeof module!=="undefined"){module["exports"]=Module;}', map: null };
     }
   },
@@ -57,18 +65,25 @@ export default defineConfig({
   },
   integrations: [
     // Emits sitemap-index.xml + sitemap-0.xml at build from all static routes.
-    // Excludes: the dev-only /tools/benchmark page (deleted post-build by
-    // excludeDevOnlyPages, so it would 404) and unbuilt placeholder tools served
-    // by the [slug] fallback (thin content — keep them out of the index).
+    // Excludes only the dev-only /tools/benchmark page (deleted post-build by
+    // excludeDevOnlyPages, so it would 404). Every registry tool now has a
+    // dedicated page, so the [slug] fallback renders nothing.
     sitemap({
-      filter: (page) =>
-        !page.includes('/tools/benchmark') &&
-        !page.includes('/tools/svg-validator'),
+      filter: (page) => !page.includes('/tools/benchmark'),
     }),
     excludeDevOnlyPages,
   ],
   vite: {
     plugins: [tailwindcss(), wawoff2BindingFix],
+    // The overweight chunks are deliberate, route-scoped codec payloads —
+    // wawoff2 compress (~930 kB) and svgo (~560 kB) — each loaded only by the
+    // single tool page that needs it. That weight is inherent to vendored
+    // WASM/codecs, not accidental bloat, so the limit is raised to match the
+    // largest legitimate chunk rather than worked around with lazy-loading
+    // that would only delay a dependency the tool cannot run without.
+    build: {
+      chunkSizeWarningLimit: 1000,
+    },
     optimizeDeps: {
       include: ['alpinejs', 'wawoff2/decompress', 'wawoff2/compress', 'upng-js', 'pdf-lib', 'opentype.js'],
       // Merged with Vite's dep-optimizer plugins so the wawoff2 binding fix

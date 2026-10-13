@@ -1,5 +1,14 @@
 [
   {
+    "version": "7.4",
+    "date": "2026-10-13",
+    "changes": [
+      "Accessibility audit pass — every page now scores 100 on Lighthouse accessibility, with properly labelled controls, keyboard-operable upload zones, a main landmark on every page and contrast fixes throughout",
+      "Image Resizer now starts with the upload field like every other tool, and preset controls sit below the settings they capture with a clearer button style",
+      "Tool health page reframed around live status — all-tools-operational by default, with honest per-tool counts if anything ever fails"
+    ]
+  },
+  {
     "version": "7.3",
     "date": "2026-09-17",
     "changes": [

@@ -363,6 +363,38 @@ textarea::placeholder {
   color: var(--ink-faint);
 }
 
+/* Native dropdown chevrons sit wherever the browser puts them — crowded
+   against the right edge while the label enjoys the full px padding. This
+   restyles every <select> at the token layer rather than via a shared
+   component: there are only a handful, but they carry per-page bindings
+   (x-model, ids the scripts wire by) a component would have to forward
+   untouched, which is how shared wrappers silently break pages.
+   appearance:none removes the native arrow; the replacement is two
+   gradients in --ink-dim so it follows the theme, and padding-right clears
+   it on the same ~12px rhythm as the left padding. Unlayered so it wins
+   over the per-page px-* utilities — uniform chevron clearance is the point. */
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 1.75rem;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--ink-dim) 50%),
+    linear-gradient(135deg, var(--ink-dim) 50%, transparent 50%);
+  background-position:
+    calc(100% - 1.4rem) 50%,
+    calc(100% - 1.05rem) 50%;
+  background-size: 0.35rem 0.35rem;
+  background-repeat: no-repeat;
+}
+
+/* Forced-colors mode flattens custom backgrounds: give the native arrow
+   back rather than leaving a padding gap with no indicator. */
+@media (forced-colors: active) {
+  select {
+    appearance: auto;
+  }
+}
+
 /* Native form controls and scrollbars follow the theme rather than the OS
    default, which otherwise renders a light scrollbar on a dark page. */
 input[type="range"],

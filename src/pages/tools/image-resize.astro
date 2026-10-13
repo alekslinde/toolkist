@@ -55,24 +55,8 @@ const faq = [
       <div class="lg:col-span-8">
         <div class="rounded-md border border-slate-200 bg-glass p-6 shadow-sm backdrop-blur-sm">
 
-          <!-- Presets & share (geometry only; crop stays local) -->
-          <div class="flex flex-wrap items-center gap-2">
-            <select
-              id="ir-preset-select"
-              class="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs text-slate-600 focus:border-purple-400 focus:outline-none"
-            >
-              <option value="">Load preset…</option>
-            </select>
-            <button id="ir-preset-save" type="button" class="rounded-md border border-slate-200 px-2.5 py-1.5 text-xs text-slate-600 hover:border-purple-300">
-              Save preset
-            </button>
-            <button id="ir-preset-copy" type="button" class="rounded-md border border-slate-200 px-2.5 py-1.5 text-xs text-slate-600 hover:border-purple-300">
-              Copy link
-            </button>
-          </div>
-
           <!-- Mode: single-file crop vs multi-file batch -->
-          <div class="mt-4 flex gap-2" role="group" aria-label="Resize mode">
+          <div class="flex gap-2" role="group" aria-label="Resize mode">
             <button
               type="button"
               @click="toSingle()"
@@ -87,20 +71,45 @@ const faq = [
             >Batch · no crop</button>
           </div>
 
+          <!-- Upload first, settings follow — same order as every other tool -->
+          <div x-show="mode === 'single'" class="mt-4">
+            <FileDropZone
+              id="ir-drop"
+              accept="image/png,image/jpeg,image/webp,image/avif,image/bmp,.png,.jpg,.jpeg,.webp,.avif,.bmp"
+              prompt="Drop an image here"
+              hint="PNG · JPG · WebP · AVIF · BMP"
+            />
+          </div>
+
+          <div x-show="mode === 'batch'" class="mt-4">
+            <p class="mb-4 text-xs text-slate-500">Batch resizes every file with the settings below. Crop is single-file only — switch to Single to crop.</p>
+            <FileDropZone
+              id="ir-batch-drop"
+              variant="multi"
+              accept="image/png,image/jpeg,image/webp,image/avif,image/bmp,.png,.jpg,.jpeg,.webp,.avif,.bmp"
+              prompt="Drop images here"
+              hint="PNG · JPG · WebP · AVIF · BMP · one or many"
+            />
+
+            <!-- Selected files -->
+            <div id="irb-count" class="mb-2 mt-4 text-xs text-slate-500"></div>
+            <div id="irb-list" class="mb-5 flex max-h-56 flex-col gap-1.5 overflow-y-auto"></div>
+          </div>
+
           <!-- Geometry: shared by single and batch modes -->
           <div class="mt-4 flex flex-col gap-5">
 
             <!-- Dimensions -->
             <div class="grid gap-4 sm:grid-cols-3">
               <div>
-                <label class="mb-1.5 block text-xs font-medium text-slate-600">Width (px)</label>
-                <input type="number" min="1" max="8000"
+                <label class="mb-1.5 block text-xs font-medium text-slate-600" for="ir-w">Width (px)</label>
+                <input id="ir-w" type="number" min="1" max="8000"
                   class="w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 focus:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-100"
                   x-model="w" @input="onWChange()" />
               </div>
               <div>
-                <label class="mb-1.5 block text-xs font-medium text-slate-600">Height (px)</label>
-                <input type="number" min="1" max="8000"
+                <label class="mb-1.5 block text-xs font-medium text-slate-600" for="ir-h">Height (px)</label>
+                <input id="ir-h" type="number" min="1" max="8000"
                   class="w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 focus:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-100"
                   x-model="h" @input="onHChange()" />
               </div>
@@ -149,21 +158,28 @@ const faq = [
 
           </div>
 
-          <!-- Single mode: per-file crop, then the op -->
-          <div x-show="mode === 'single'" class="mt-4">
+          <!-- Presets & share (geometry only; crop stays local) — after the settings they capture -->
+          <div class="mt-4 flex flex-wrap items-center gap-2">
+            <select
+              id="ir-preset-select"
+              class="cursor-pointer rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600 focus:border-purple-400 focus:outline-none"
+            >
+              <option value="">Load preset…</option>
+            </select>
+            <button id="ir-preset-save" type="button" class="cursor-pointer rounded-md border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:border-slate-300">
+              Save preset
+            </button>
+            <button id="ir-preset-copy" type="button" class="cursor-pointer rounded-md border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:border-slate-300">
+              Copy link
+            </button>
+          </div>
 
-          <!-- Drop zone -->
-          <FileDropZone
-            id="ir-drop"
-            accept="image/png,image/jpeg,image/webp,image/avif,image/bmp,.png,.jpg,.jpeg,.webp,.avif,.bmp"
-            prompt="Drop an image here"
-            hint="PNG · JPG · WebP · AVIF · BMP"
-            label="Drop image or click to browse"
-          />
+          <!-- Single mode: crop the loaded file, then the op -->
+          <div x-show="mode === 'single'" class="mt-4">
 
           <div x-show="fileLoaded" class="flex flex-col gap-5">
 
-            <p x-show="origDims" class="text-xs text-slate-400" x-text="'Original: ' + origDims"></p>
+            <p x-show="origDims" class="text-xs text-slate-500" x-text="'Original: ' + origDims"></p>
 
             <!-- Crop thumbnail -->
             <div>
@@ -244,22 +260,8 @@ const faq = [
           </div>
           </div>
 
-          <!-- Batch mode: same geometry, no crop -->
+          <!-- Batch mode: run with the same geometry, no crop -->
           <div x-show="mode === 'batch'" class="mt-4">
-            <p class="mb-4 text-xs text-slate-400">Batch resizes every file with the same settings above. Crop is single-file only — switch to Single to crop.</p>
-
-            <FileDropZone
-              id="ir-batch-drop"
-              variant="multi"
-              accept="image/png,image/jpeg,image/webp,image/avif,image/bmp,.png,.jpg,.jpeg,.webp,.avif,.bmp"
-              prompt="Drop images here"
-              hint="PNG · JPG · WebP · AVIF · BMP · one or many"
-              label="Drop images or click to browse"
-            />
-
-            <!-- Selected files -->
-            <div id="irb-count" class="mb-2 mt-4 text-xs text-slate-500"></div>
-            <div id="irb-list" class="mb-5 flex max-h-56 flex-col gap-1.5 overflow-y-auto"></div>
 
             <!-- Action button — always visible, disabled until a file loads -->
             <button id="irb-run"
@@ -294,7 +296,7 @@ const faq = [
           Resize any image to exact pixel dimensions in your browser. Choose from four fit modes — Contain (letterbox with transparency), Cover (crop and fill), Stretch (distort to exact size), or Pad (letterbox with a custom fill colour). Download the result as JPEG, PNG or WebP. Single mode adds a draggable crop; batch mode resizes many files with the same settings. All processing happens locally in your browser using the Canvas API.
         </p>
         <FAQAccordion items={faq} />
-        <div class="mt-10 text-xs leading-relaxed text-slate-400">
+        <div class="mt-10 text-xs leading-relaxed text-slate-500">
           <p>Related: <a href="/tools/image-compress" class="text-purple-500 hover:underline">Image Compressor</a> · <a href="/tools/image-convert" class="text-purple-500 hover:underline">Image Converter</a> · <a href="/tools/ico-generator" class="text-purple-500 hover:underline">ICO Generator</a></p>
           <p class="mt-2">Keywords: resize image online, image resizer, crop image browser, contain cover stretch pad, no upload image resize</p>
         </div>

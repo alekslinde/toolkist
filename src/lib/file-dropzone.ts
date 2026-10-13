@@ -94,20 +94,15 @@ export interface MultiDropZoneOptions {
 }
 
 /**
- * Shared drag/click/keyboard wiring for a `<FileDropZone>` root. Toggles the
- * `data-dz-over` highlight and opens the picker on click/Enter/Space. Returns
- * the file input so callers can attach their own change/drop handling.
+ * Shared drag/click wiring for a `<FileDropZone>` root. Toggles the
+ * `data-dz-over` highlight and forwards clicks to the labelled input.
+ * Keyboard needs no handling: the input is the real control and operates
+ * natively. Returns the file input so callers can attach change/drop logic.
  */
 function bindZone(root: HTMLElement, onDrop: (files: FileList | undefined) => void): HTMLInputElement {
   const input = root.querySelector<HTMLInputElement>('[data-dz-input]')!;
 
   root.addEventListener('click', () => input.click());
-  root.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      input.click();
-    }
-  });
   root.addEventListener('dragover', (e) => {
     e.preventDefault();
     root.dataset.dzOver = 'true';
