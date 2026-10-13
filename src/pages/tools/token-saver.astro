@@ -1,1 +1,563 @@
-SEE_LOCAL_FILE_WILL_REPLACE
+---
+import MainLayout from '@/layouts/MainLayout.astro';
+import Breadcrumbs from '@/components/Breadcrumbs.astro';
+import QuickTips from '@/components/QuickTips.astro';
+import HelpfulButton from '@/components/HelpfulButton.astro';
+import ToolSEO from '@/components/ToolSEO.astro';
+
+const tips = [
+  { heading: 'Phrase collapsing', body: 'Verbose filler like "could you please help me with" is removed or shortened to a tight equivalent.' },
+  { heading: 'Synonym compression', body: 'Common long words — "application", "configuration", "authentication" — are swapped for their abbreviated forms. Ambiguous nouns (token, error, message…) are preserved.' },
+  { heading: 'Code is protected', body: 'Content inside backtick code blocks is never touched; only the surrounding prose is compressed.' },
+  { heading: 'Domain packs', body: 'Enable optional vocab packs in the compress section for deeper abbreviation in SQL, React, DevOps, UI, or UX contexts.' },
+];
+
+const faq = [
+  { question: 'Will the compressed prompt give the same result?', answer: 'For most technical prompts, yes. The compressions use abbreviations and phrase-collapses that LLMs handle natively. Highly nuanced or creative prompts may benefit from lighter compression.' },
+  { question: 'How are token savings estimated?', answer: 'Token counts use the o200k_base encoding (GPT-4o / GPT-4.1 / o-series / GPT-5) via gpt-tokenizer, running fully in your browser.' },
+  { question: 'Is anything sent to a server?', answer: 'No. All compression runs entirely in your browser. Your prompt text never leaves your device.' },
+  { question: 'What is the environmental impact calculation based on?', answer: 'A rough estimate of ~0.001 mWh per 1,000 tokens for GPT-4-class inference, 0.021 kg CO₂/kWh for the grid, and a tree absorbing ~21 kg CO₂/year. Impact calculator uses the same o200k bench savings rate as the playground.' },
+];
+---
+
+<MainLayout
+  title="AI Prompt Token Saver — Free In-Browser Tool | Toolkist"
+  description="Compress verbose AI prompts to cut token usage. Collapses filler phrases, abbreviates common terms, and protects code blocks. Runs entirely in your browser."
+  alpine={false}
+>
+  <div class="page-shell">
+
+    <div class="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <div>
+        <Breadcrumbs tool="Prompt Token Saver" category="Code & Web" />
+        <h1 class="mt-3 text-2xl font-semibold tracking-tight text-slate-900">Prompt Token Saver</h1>
+        <p class="mt-1 text-sm text-slate-500">Compress verbose AI prompts to reduce token usage — collapses filler phrases, abbreviates tech jargon, and never touches your code blocks.</p>
+      </div>
+      <HelpfulButton toolKey="token-saver" />
+    </div>
+
+    <div class="grid grid-cols-1 gap-8 lg:grid-cols-12">
+
+      <div class="lg:col-span-8 space-y-6">
+
+        <div class="rounded-xl border border-slate-200 bg-surface p-6 shadow-sm">
+          <h2 class="mb-4 text-sm font-semibold text-slate-700">Compress a Prompt</h2>
+
+          <div class="mb-3">
+            <div class="mb-1.5 flex items-center justify-between">
+              <label for="inputPrompt" class="text-xs font-medium text-slate-600">Your prompt</label>
+              <span id="inputCount" class="text-xs text-slate-400">0 chars · ~0 tokens</span>
+            </div>
+            <textarea id="inputPrompt" rows="6" spellcheck="false"
+              placeholder="Paste your verbose prompt here…"
+              class="w-full resize-y rounded-lg border border-slate-200 px-3 py-2 font-mono text-xs text-slate-800 focus:border-purple-400 focus:outline-none"></textarea>
+          </div>
+
+          <div class="mb-4">
+            <p class="mb-2 text-xs font-medium text-slate-600">Domain packs <span class="font-normal text-slate-400">(optional — enable extra abbreviations)</span></p>
+            <div class="flex flex-wrap gap-2" id="packToggles">
+              {[
+                { id: 'pack-sql',    label: 'SQL / Database' },
+                { id: 'pack-react',  label: 'React / Frontend' },
+                { id: 'pack-devops', label: 'DevOps / K8s' },
+                { id: 'pack-data',   label: 'Data Science / ML' },
+                { id: 'pack-ui',     label: 'UI Design' },
+                { id: 'pack-ux',     label: 'UX Research' },
+              ].map(p => (
+                <label class="flex cursor-pointer items-center gap-1.5 rounded-full border border-slate-200 px-3 py-1 text-xs text-slate-600 transition-colors hover:border-purple-300 has-[:checked]:border-purple-400 has-[:checked]:bg-purple-50 has-[:checked]:text-purple-700">
+                  <input type="checkbox" id={p.id} class="h-3 w-3 accent-purple-500" />
+                  {p.label}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div class="mb-4 flex flex-wrap items-center gap-2">
+            <button id="btnCompress" disabled
+              class="rounded-lg bg-accent hover:bg-accent-hover px-5 py-2.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:opacity-50">
+              Compress
+            </button>
+            <button id="btnClear" disabled
+              class="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:border-purple-300 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-slate-200">
+              Clear
+            </button>
+            <label class="ml-auto flex cursor-pointer items-center gap-1.5 text-xs text-slate-500">
+              <input type="checkbox" id="liveCompress" class="h-3 w-3 accent-purple-500" checked />
+              Live compress
+            </label>
+            <label class="flex cursor-pointer items-center gap-1.5 text-xs text-slate-500">
+              <input type="checkbox" id="showDiff" class="h-3 w-3 accent-purple-500" />
+              Show diff
+            </label>
+          </div>
+          <div id="similarityWarn" class="mb-3 hidden rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            <span class="font-medium">Low term overlap</span> — compression may have dropped important wording. Review the output before use.
+          </div>
+
+          <div>
+            <div class="mb-1.5 flex items-center justify-between">
+              <label class="text-xs font-medium text-slate-600">Compressed output</label>
+              <div class="flex items-center gap-3">
+                <span id="outputCount" class="text-xs text-slate-400">0 chars · ~0 tokens</span>
+                <span id="savingsBadge"
+                  class="hidden items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
+                  <span>↓</span><span id="savingsPct"></span> saved
+                </span>
+                <button id="btnCopy" class="text-xs text-slate-400 hover:text-purple-600">copy</button>
+              </div>
+            </div>
+            <div id="outputText"
+              class="min-h-[6rem] w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-xs text-slate-700 whitespace-pre-wrap break-words">
+              <span class="output-placeholder text-slate-400">Your compressed prompt will appear here…</span>
+            </div>
+            <div id="diffPanel" class="mt-2 hidden min-h-[4rem] w-full rounded-lg border border-dashed border-slate-200 bg-white px-3 py-2 font-mono text-xs text-slate-700 whitespace-pre-wrap break-words"></div>
+          </div>
+
+          <div id="feedbackArea" class="hidden mt-3">
+            <button id="btnBadOutput"
+              class="flex items-center gap-1.5 text-xs text-slate-400 hover:text-rose-500 transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M18 9.5a1.5 1.5 0 11-3 0v-6a1.5 1.5 0 013 0v6zM14 9.667v-5.43a2 2 0 00-1.105-1.79l-.05-.025A4 4 0 0011.055 2H5.64a2 2 0 00-1.962 1.608l-1.2 6A2 2 0 004.44 12H8v4a2 2 0 002 2 1 1 0 001-1v-.667l1.5-2.333H14z" />
+              </svg>
+              Bad output? Report it
+            </button>
+            <div id="feedbackForm" class="hidden mt-2 rounded-lg border border-rose-100 bg-rose-50/60 p-3 space-y-2">
+              <p class="text-xs text-slate-500">What went wrong? <span class="text-slate-400">(optional — 280 chars max)</span></p>
+              <textarea id="feedbackNote" rows="2" maxlength="280"
+                placeholder="e.g. 'auth' is wrong here — it changed the meaning"
+                class="w-full resize-none rounded-md border border-rose-200 bg-surface px-2.5 py-1.5 text-xs text-slate-700 focus:border-rose-400 focus:outline-none"></textarea>
+              <div class="flex items-center gap-2">
+                <button id="btnSubmitFeedback"
+                  class="rounded-md bg-rose-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-rose-600">
+                  Submit report
+                </button>
+                <button id="btnCancelFeedback"
+                  class="text-xs text-slate-400 hover:text-slate-600">
+                  Cancel
+                </button>
+                <span id="feedbackStatus" class="ml-auto text-xs text-slate-400"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="rounded-xl border border-slate-200 bg-surface p-6 shadow-sm">
+          <h2 class="mb-1 text-sm font-semibold text-slate-700">Environmental Impact Calculator</h2>
+          <p class="mb-5 text-xs text-slate-400">Estimate how much energy you save by compressing your prompts over time.</p>
+
+          <div class="space-y-4 mb-6">
+            <div>
+              <div class="mb-1 flex justify-between text-xs text-slate-500">
+                <span>Prompts per day</span><span id="valMsgs" class="font-medium text-slate-700">20</span>
+              </div>
+              <input type="range" id="sliderMsgs" min="1" max="200" value="20" class="w-full accent-purple-500" />
+            </div>
+            <div>
+              <div class="mb-1 flex justify-between text-xs text-slate-500">
+                <span>Avg. prompt length (chars)</span><span id="valLen" class="font-medium text-slate-700">500</span>
+              </div>
+              <input type="range" id="sliderLen" min="50" max="5000" step="50" value="500" class="w-full accent-purple-500" />
+            </div>
+            <div>
+              <div class="mb-1 flex justify-between text-xs text-slate-500">
+                <span>Days per year active</span><span id="valDays" class="font-medium text-slate-700">250</span>
+              </div>
+              <input type="range" id="sliderDays" min="1" max="365" value="250" class="w-full accent-purple-500" />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div class="rounded-lg bg-slate-50 p-3 text-center">
+              <div id="impTokens" class="text-lg font-bold text-purple-600">—</div>
+              <div class="mt-0.5 text-xs text-slate-500">tokens saved/yr</div>
+            </div>
+            <div class="rounded-lg bg-slate-50 p-3 text-center">
+              <div id="impEnergy" class="text-lg font-bold text-indigo-600">—</div>
+              <div class="mt-0.5 text-xs text-slate-500">mWh saved/yr</div>
+            </div>
+            <div class="rounded-lg bg-slate-50 p-3 text-center">
+              <div id="impTrees" class="text-lg font-bold text-emerald-600">—</div>
+              <div class="mt-0.5 text-xs text-slate-500">tree-days equivalent</div>
+            </div>
+            <div class="rounded-lg bg-slate-50 p-3 text-center">
+              <div id="impPhones" class="text-lg font-bold text-amber-600">—</div>
+              <div class="mt-0.5 text-xs text-slate-500">phone charges equiv.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="rounded-xl border border-slate-200 bg-surface p-6 shadow-sm">
+          <h2 class="mb-1 text-sm font-semibold text-slate-700">Benchmark — 29 Real-World Prompts</h2>
+          <p class="mb-5 text-xs text-slate-400">Average compression across a suite of verbose developer prompts.</p>
+
+          <div class="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div class="rounded-lg bg-slate-50 p-3 text-center">
+              <div id="sumAvgSaving" class="text-lg font-bold text-purple-600">—</div>
+              <div class="mt-0.5 text-xs text-slate-500">avg chars saved</div>
+            </div>
+            <div class="rounded-lg bg-slate-50 p-3 text-center">
+              <div id="sumBestSaving" class="text-lg font-bold text-indigo-600">—</div>
+              <div class="mt-0.5 text-xs text-slate-500">best case</div>
+            </div>
+            <div class="rounded-lg bg-slate-50 p-3 text-center">
+              <div id="sumTotalChars" class="text-lg font-bold text-emerald-600">—</div>
+              <div class="mt-0.5 text-xs text-slate-500">total chars stripped</div>
+            </div>
+            <div class="rounded-lg bg-slate-50 p-3 text-center">
+              <div id="sumLeaves" class="text-lg font-bold text-amber-600">—</div>
+              <div class="mt-0.5 text-xs text-slate-500">mWh saved (bench)</div>
+            </div>
+          </div>
+
+          <div id="resultsBody" class="max-h-96 overflow-y-auto space-y-1 pr-1"></div>
+        </div>
+
+      </div>
+
+      <aside class="lg:col-span-4">
+        <div class="sticky top-8">
+          <QuickTips tips={tips} />
+        </div>
+      </aside>
+
+    </div>
+
+    <ToolSEO
+      heading="About Prompt Token Saver"
+      faq={faq}
+      related={`<a href="/tools/code-formatter" class="text-purple-500 hover:underline">Code Formatter</a> · <a href="/tools/semantic-html" class="text-purple-500 hover:underline">Semantic HTML Converter</a>`}
+      keywords="prompt compression, token saver, LLM token reduction, AI prompt optimizer, reduce AI costs, GPT token counter"
+    >
+      <p slot="description" class="mb-8 text-sm leading-relaxed text-slate-600">
+        Verbose AI prompts waste tokens — and tokens cost money, latency, and energy. This tool compresses your prompt by collapsing filler phrases ("could you please help me with" → ""), abbreviating common technical terms ("authentication" → "auth", "configuration" → "config"), and applying logic symbol substitutions ("greater than or equal to" → ">="). Code blocks are automatically protected and passed through unchanged. Savings of 20–50% are typical for developer-style prompts.
+      </p>
+    </ToolSEO>
+
+  </div>
+</MainLayout>
+
+<style>
+  .savings-pct { display: inline-block; border-radius: 9999px; padding: 1px 8px; font-size: 0.7rem; font-weight: 600; }
+  .savings-pct.high { background: #d1fae5; color: #065f46; }
+  .savings-pct.mid  { background: #fef3c7; color: #92400e; }
+  .savings-pct.low  { background: #f1f5f9; color: #64748b; }
+  .ts-diff-rm { text-decoration: line-through; color: #be123c; background: #fff1f2; border-radius: 2px; }
+  .ts-diff-add { text-decoration: none; color: #047857; background: #ecfdf5; border-radius: 2px; }
+</style>
+
+<script>
+  import {
+    coreDictionaries,
+    domainPacks,
+    Defluffer,
+    BENCHMARK_PROMPTS,
+    estimateTokens,
+    termOverlapSimilarity,
+    CHARS_PER_TOKEN,
+    wordDiffHtml,
+  } from '@/lib/token-saver';
+
+  function getActivePackIds(): string[] {
+    return Object.keys(domainPacks).filter(
+      (id) => (document.getElementById(id) as HTMLInputElement | null)?.checked
+    );
+  }
+
+  function getActivePacks(): Record<string, string> {
+    return getActivePackIds().reduce(
+      (acc, id) => ({ ...acc, ...domainPacks[id] }),
+      {} as Record<string, string>
+    );
+  }
+
+  let defluffer = new Defluffer(coreDictionaries, getActivePacks());
+
+  const benchDefluffer = new Defluffer(coreDictionaries);
+  const testResults = BENCHMARK_PROMPTS.map((original) => {
+    const compressed = benchDefluffer.compress(original);
+    const savings = parseFloat(((1 - compressed.length / original.length) * 100).toFixed(1));
+    return { original, compressed, savings, origLen: original.length, compLen: compressed.length };
+  });
+
+  const avgSaving = (testResults.reduce((a, r) => a + r.savings, 0) / testResults.length).toFixed(1);
+  const bestSaving = Math.max(...testResults.map((r) => r.savings)).toFixed(1);
+  const totalStripped =
+    testResults.reduce((a, r) => a + r.origLen, 0) -
+    testResults.reduce((a, r) => a + r.compLen, 0);
+  // Real o200k counts (same path as the playground)
+  const tokensStripped = testResults.reduce(
+    (a, r) => a + Math.max(0, estimateTokens(r.original) - estimateTokens(r.compressed)),
+    0
+  );
+  const mwhStripped = ((tokensStripped * 0.001) / 1000).toFixed(4);
+
+  (document.getElementById('sumAvgSaving') as HTMLElement).textContent = avgSaving + '%';
+  (document.getElementById('sumBestSaving') as HTMLElement).textContent = bestSaving + '%';
+  (document.getElementById('sumTotalChars') as HTMLElement).textContent = totalStripped.toLocaleString();
+  (document.getElementById('sumLeaves') as HTMLElement).textContent = mwhStripped;
+
+  function escHtml(s: string): string {
+    return s.replace(/&/g, '&').replace(/</g, '<').replace(/>/g, '>');
+  }
+
+  const resultsBody = document.getElementById('resultsBody') as HTMLElement;
+  testResults.forEach((r) => {
+    const cls = r.savings >= 40 ? 'high' : r.savings >= 20 ? 'mid' : 'low';
+    const preview = r.original.length > 72 ? r.original.slice(0, 72) + '…' : r.original;
+    const item = document.createElement('div');
+    item.className =
+      'bench-item rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 cursor-pointer hover:border-purple-200 hover:bg-purple-50/30 transition-colors';
+    item.innerHTML = `
+      <div class="flex items-center justify-between gap-2">
+        <span class="min-w-0 flex-1 truncate text-xs text-slate-600">${escHtml(preview)}</span>
+        <span class="savings-pct ${cls}">↓ ${r.savings}%</span>
+        <svg class="bench-chevron h-3.5 w-3.5 shrink-0 text-slate-400 transition-transform" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
+      </div>
+      <div class="bench-detail mt-2 hidden space-y-1 border-t border-slate-100 pt-2 text-xs">
+        <div><span class="font-medium text-slate-500">Original (${r.origLen}):</span> <span class="text-slate-700">${escHtml(r.original)}</span></div>
+        <div><span class="font-medium text-slate-500">Compressed (${r.compLen}):</span> <span class="text-slate-700">${escHtml(r.compressed)}</span></div>
+      </div>`;
+    item.addEventListener('click', () => {
+      const detail = item.querySelector('.bench-detail') as HTMLElement;
+      const chevron = item.querySelector('.bench-chevron') as HTMLElement;
+      const open = !detail.classList.contains('hidden');
+      detail.classList.toggle('hidden', open);
+      chevron.style.transform = open ? '' : 'rotate(180deg)';
+    });
+    resultsBody.appendChild(item);
+  });
+
+  const MWH_PER_1K_TOKENS = 0.001;
+  const KG_CO2_PER_KWH = 0.021;
+  const TREE_KG_PER_YEAR = 21;
+  const PHONE_MWH = 0.01;
+  // Token savings rate from o200k bench (not chars÷3.5)
+  const benchTokOrig = testResults.reduce((a, r) => a + estimateTokens(r.original), 0);
+  const benchTokComp = testResults.reduce((a, r) => a + estimateTokens(r.compressed), 0);
+  const avgTokenSavingFrac = benchTokOrig > 0 ? (benchTokOrig - benchTokComp) / benchTokOrig : 0;
+  // Chars-per-token from the same bench, for converting slider char length → tokens
+  const benchChars = testResults.reduce((a, r) => a + r.origLen, 0);
+  const charsPerTokenBench = benchTokOrig > 0 ? benchChars / benchTokOrig : CHARS_PER_TOKEN;
+
+  function updateImpact() {
+    const msgs = parseInt((document.getElementById('sliderMsgs') as HTMLInputElement).value);
+    const len = parseInt((document.getElementById('sliderLen') as HTMLInputElement).value);
+    const days = parseInt((document.getElementById('sliderDays') as HTMLInputElement).value);
+    (document.getElementById('valMsgs') as HTMLElement).textContent = String(msgs);
+    (document.getElementById('valLen') as HTMLElement).textContent = String(len);
+    (document.getElementById('valDays') as HTMLElement).textContent = String(days);
+
+    const tokensPerYear = Math.round((msgs * len * days) / charsPerTokenBench);
+    const tokensSaved = Math.round(tokensPerYear * avgTokenSavingFrac);
+    const mwhSaved = (tokensSaved * MWH_PER_1K_TOKENS) / 1000;
+    const treeDays = (((mwhSaved * 1000 * KG_CO2_PER_KWH) / TREE_KG_PER_YEAR) * 365).toFixed(1);
+
+    (document.getElementById('impTokens') as HTMLElement).textContent = tokensSaved.toLocaleString();
+    (document.getElementById('impEnergy') as HTMLElement).textContent =
+      mwhSaved < 1 ? mwhSaved.toFixed(4) : mwhSaved.toFixed(2);
+    (document.getElementById('impTrees') as HTMLElement).textContent = treeDays;
+    (document.getElementById('impPhones') as HTMLElement).textContent = Math.round(
+      mwhSaved / PHONE_MWH
+    ).toLocaleString();
+  }
+  ['sliderMsgs', 'sliderLen', 'sliderDays'].forEach((id) => {
+    document.getElementById(id)!.addEventListener('input', updateImpact);
+  });
+  updateImpact();
+
+  const PACK_STORAGE_KEY = 'ts-active-packs';
+  try {
+    const saved = JSON.parse(localStorage.getItem(PACK_STORAGE_KEY) || '[]') as string[];
+    saved.forEach((id) => {
+      const el = document.getElementById(id) as HTMLInputElement | null;
+      if (el) el.checked = true;
+    });
+    defluffer = new Defluffer(coreDictionaries, getActivePacks());
+  } catch {}
+
+  document.getElementById('packToggles')!.addEventListener('change', () => {
+    defluffer = new Defluffer(coreDictionaries, getActivePacks());
+    try {
+      localStorage.setItem(PACK_STORAGE_KEY, JSON.stringify(getActivePackIds()));
+    } catch {}
+    if ((document.getElementById('liveCompress') as HTMLInputElement).checked) {
+      runCompress(false);
+    }
+  });
+
+  const inputEl = document.getElementById('inputPrompt') as HTMLTextAreaElement;
+  const outputEl = document.getElementById('outputText') as HTMLElement;
+  const inputCnt = document.getElementById('inputCount') as HTMLElement;
+  const outputCnt = document.getElementById('outputCount') as HTMLElement;
+  const badge = document.getElementById('savingsBadge') as HTMLElement;
+  const savingsPctEl = document.getElementById('savingsPct') as HTMLElement;
+  const btnCompressEl = document.getElementById('btnCompress') as HTMLButtonElement;
+  const btnClearEl = document.getElementById('btnClear') as HTMLButtonElement;
+  const similarityWarn = document.getElementById('similarityWarn') as HTMLElement;
+  const liveToggle = document.getElementById('liveCompress') as HTMLInputElement;
+  const showDiffEl = document.getElementById('showDiff') as HTMLInputElement;
+  const diffPanel = document.getElementById('diffPanel') as HTMLElement;
+
+  const PLACEHOLDER = 'Your compressed prompt will appear here…';
+  const SIM_THRESHOLD = 0.35;
+
+  function setCount(el: HTMLElement, text: string) {
+    el.textContent = `${text.length} chars · ~${estimateTokens(text)} tokens`;
+  }
+
+  function syncPromptButtons() {
+    const empty = inputEl.value.trim() === '';
+    btnCompressEl.disabled = empty;
+    btnClearEl.disabled = empty;
+  }
+
+  function runCompress(fromButton: boolean) {
+    const raw = inputEl.value.trim();
+    if (!raw) {
+      outputEl.innerHTML = `<span class="output-placeholder text-slate-400">${PLACEHOLDER}</span>`;
+      setCount(outputCnt, '');
+      badge.style.display = 'none';
+      similarityWarn.classList.add('hidden');
+      diffPanel.classList.add('hidden');
+      diffPanel.innerHTML = '';
+      return;
+    }
+
+    const result = defluffer.compress(raw);
+    const pct = ((1 - result.length / raw.length) * 100).toFixed(1);
+    outputEl.textContent = result;
+    setCount(outputCnt, result);
+    savingsPctEl.textContent = pct + '%';
+    badge.style.display = 'flex';
+
+    if (showDiffEl.checked) {
+      diffPanel.innerHTML = wordDiffHtml(raw, result);
+      diffPanel.classList.remove('hidden');
+    } else {
+      diffPanel.classList.add('hidden');
+      diffPanel.innerHTML = '';
+    }
+
+    const sim = termOverlapSimilarity(raw, result);
+    similarityWarn.classList.toggle('hidden', sim >= SIM_THRESHOLD);
+
+    if (fromButton) {
+      const feedbackArea = document.getElementById('feedbackArea') as HTMLElement;
+      feedbackArea.classList.remove('hidden');
+      (document.getElementById('feedbackForm') as HTMLElement).classList.add('hidden');
+      (document.getElementById('btnBadOutput') as HTMLElement).classList.remove('hidden');
+      (document.getElementById('feedbackStatus') as HTMLElement).textContent = '';
+      (document.getElementById('feedbackNote') as HTMLTextAreaElement).value = '';
+    }
+  }
+
+  let liveTimer: ReturnType<typeof setTimeout> | null = null;
+  inputEl.addEventListener('input', () => {
+    setCount(inputCnt, inputEl.value);
+    syncPromptButtons();
+    if (liveToggle.checked) {
+      if (liveTimer) clearTimeout(liveTimer);
+      liveTimer = setTimeout(() => runCompress(false), 180);
+    }
+  });
+  syncPromptButtons();
+
+  liveToggle.addEventListener('change', () => {
+    if (liveToggle.checked) runCompress(false);
+  });
+
+  showDiffEl.addEventListener('change', () => {
+    if (inputEl.value.trim()) runCompress(false);
+    else {
+      diffPanel.classList.add('hidden');
+      diffPanel.innerHTML = '';
+    }
+  });
+
+  btnCompressEl.addEventListener('click', () => runCompress(true));
+
+  btnClearEl.addEventListener('click', () => {
+    inputEl.value = '';
+    outputEl.innerHTML = `<span class="output-placeholder text-slate-400">${PLACEHOLDER}</span>`;
+    setCount(inputCnt, '');
+    setCount(outputCnt, '');
+    badge.style.display = 'none';
+    similarityWarn.classList.add('hidden');
+    diffPanel.classList.add('hidden');
+    diffPanel.innerHTML = '';
+    (document.getElementById('feedbackArea') as HTMLElement).classList.add('hidden');
+    syncPromptButtons();
+  });
+
+  document.getElementById('btnBadOutput')!.addEventListener('click', () => {
+    (document.getElementById('feedbackForm') as HTMLElement).classList.remove('hidden');
+    (document.getElementById('btnBadOutput') as HTMLElement).classList.add('hidden');
+  });
+  document.getElementById('btnCancelFeedback')!.addEventListener('click', () => {
+    (document.getElementById('feedbackForm') as HTMLElement).classList.add('hidden');
+    (document.getElementById('btnBadOutput') as HTMLElement).classList.remove('hidden');
+  });
+
+  document.getElementById('btnSubmitFeedback')!.addEventListener('click', async () => {
+    const original = inputEl.value.trim();
+    const compressed = (outputEl.textContent ?? '').trim();
+    const note = (document.getElementById('feedbackNote') as HTMLTextAreaElement).value.trim();
+    const statusEl = document.getElementById('feedbackStatus') as HTMLElement;
+    const btn = document.getElementById('btnSubmitFeedback') as HTMLButtonElement;
+    if (!original || !compressed || compressed === PLACEHOLDER) return;
+
+    btn.disabled = true;
+    statusEl.textContent = 'Sending…';
+    try {
+      const res = await fetch('/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ original, compressed, note }),
+      });
+      if (res.ok) {
+        (document.getElementById('feedbackForm') as HTMLElement).classList.add('hidden');
+        statusEl.textContent = '✓ Thanks — your report helps improve the tool.';
+        statusEl.classList.add('text-emerald-600');
+        statusEl.classList.remove('text-rose-500');
+      } else if (res.status === 409) {
+        statusEl.textContent = 'Already reported.';
+        statusEl.classList.add('text-rose-500');
+        btn.disabled = false;
+      } else if (res.status === 429) {
+        statusEl.textContent = 'Too many reports today.';
+        statusEl.classList.add('text-rose-500');
+        btn.disabled = false;
+      } else {
+        statusEl.textContent = 'Something went wrong — try again.';
+        statusEl.classList.add('text-rose-500');
+        btn.disabled = false;
+      }
+    } catch {
+      statusEl.textContent = 'Network error — try again.';
+      statusEl.classList.add('text-rose-500');
+      btn.disabled = false;
+    }
+  });
+
+  document.getElementById('btnCopy')!.addEventListener('click', function (this: HTMLElement) {
+    const txt = outputEl.textContent ?? '';
+    if (!txt || txt === PLACEHOLDER) return;
+    navigator.clipboard.writeText(txt).then(() => {
+      const orig = this.textContent!;
+      this.textContent = '✓ copied';
+      this.classList.add('text-emerald-600');
+      setTimeout(() => {
+        this.textContent = orig;
+        this.classList.remove('text-emerald-600');
+      }, 1500);
+    }).catch(() => {
+      const orig = this.textContent!;
+      this.textContent = 'failed';
+      this.classList.add('text-rose-500');
+      setTimeout(() => {
+        this.textContent = orig;
+        this.classList.remove('text-rose-500');
+      }, 1500);
+    });
+  });
+</script>
