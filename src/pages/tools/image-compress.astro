@@ -83,7 +83,6 @@ const faq = [
             accept="image/png,image/jpeg,image/webp,image/svg+xml"
             prompt="Drop images here"
             hint="PNG · JPG · WebP · SVG · one or many"
-            label="Drop images or click to browse"
           />
 
           <!-- Selected files -->
@@ -102,22 +101,6 @@ const faq = [
 
           <!-- Controls -->
           <div id="ic-controls" hidden class="flex flex-col gap-5">
-
-            <!-- Presets & share -->
-            <div class="flex flex-wrap items-center gap-2">
-              <select
-                id="ic-preset-select"
-                class="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs text-slate-600 focus:border-purple-400 focus:outline-none"
-              >
-                <option value="">Load preset…</option>
-              </select>
-              <button id="ic-preset-save" type="button" class="rounded-md border border-slate-200 px-2.5 py-1.5 text-xs text-slate-600 hover:border-purple-300">
-                Save preset
-              </button>
-              <button id="ic-preset-copy" type="button" class="rounded-md border border-slate-200 px-2.5 py-1.5 text-xs text-slate-600 hover:border-purple-300">
-                Copy link
-              </button>
-            </div>
 
             <div class="grid gap-4 sm:grid-cols-2">
               <div>
@@ -169,21 +152,37 @@ const faq = [
             <!-- Stats grid -->
             <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
               <div class="rounded-md bg-slate-50 p-3">
-                <p class="text-[10px] font-medium uppercase tracking-wider text-slate-400">Original</p>
+                <p class="text-[10px] font-medium uppercase tracking-wider text-slate-500">Original</p>
                 <p id="ic-orig-size" class="mt-1 text-sm font-semibold text-slate-800">—</p>
               </div>
               <div class="rounded-md bg-slate-50 p-3">
-                <p class="text-[10px] font-medium uppercase tracking-wider text-slate-400">Output</p>
+                <p class="text-[10px] font-medium uppercase tracking-wider text-slate-500">Output</p>
                 <p id="ic-out-size" class="mt-1 text-sm font-semibold text-slate-800">—</p>
               </div>
               <div class="rounded-md bg-slate-50 p-3">
-                <p class="text-[10px] font-medium uppercase tracking-wider text-slate-400">Files</p>
+                <p class="text-[10px] font-medium uppercase tracking-wider text-slate-500">Files</p>
                 <p id="ic-file-count" class="mt-1 text-sm font-semibold text-slate-800">—</p>
               </div>
               <div class="rounded-md bg-slate-50 p-3">
-                <p class="text-[10px] font-medium uppercase tracking-wider text-slate-400">Saving</p>
+                <p class="text-[10px] font-medium uppercase tracking-wider text-slate-500">Saving</p>
                 <p id="ic-saving" class="mt-1 text-sm font-semibold text-slate-800">—</p>
               </div>
+            </div>
+
+            <!-- Presets & share — after the settings they capture -->
+            <div class="flex flex-wrap items-center gap-2">
+              <select
+                id="ic-preset-select"
+                class="cursor-pointer rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600 focus:border-purple-400 focus:outline-none"
+              >
+                <option value="">Load preset…</option>
+              </select>
+              <button id="ic-preset-save" type="button" class="cursor-pointer rounded-md border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:border-slate-300">
+                Save preset
+              </button>
+              <button id="ic-preset-copy" type="button" class="cursor-pointer rounded-md border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:border-slate-300">
+                Copy link
+              </button>
             </div>
 
           </div>
@@ -241,7 +240,7 @@ const faq = [
         <h2 class="mb-6 text-lg font-semibold text-slate-900">Frequently asked questions</h2>
         <FAQAccordion items={faq} />
 
-        <div class="mt-10 text-xs leading-relaxed text-slate-400">
+        <div class="mt-10 text-xs leading-relaxed text-slate-500">
           <p>
             Related tools: <a href="/tools/image-resize" class="text-purple-500 hover:underline">Image Resizer</a> ·
             <a href="/tools/image-convert" class="text-purple-500 hover:underline">Image Converter</a> ·

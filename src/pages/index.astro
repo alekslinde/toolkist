@@ -29,6 +29,9 @@ const toolCount = tools.length;
   description="Free, open-source browser tools by Aleks Linde. Convert fonts, compress PDFs, check WCAG contrast, resize images, format code and more — zero uploads, no account required."
 >
 
+  <!-- One main landmark for the page; the directory keeps its #tools anchor. -->
+  <main>
+
   <!-- Hero -->
   <header class="border-b border-slate-200 bg-surface px-8 pb-16 pt-14 text-center lg:px-14 lg:pt-20">
     <p class="mb-6 font-mono text-[0.68rem] uppercase tracking-[0.2em] text-purple-500">
@@ -60,7 +63,7 @@ const toolCount = tools.length;
       </svg>
       <span
         id="search-ph"
-        class="pointer-events-none absolute left-12 top-1/2 -translate-y-1/2 text-base text-slate-400 transition-opacity duration-200 ease-out"
+        class="pointer-events-none absolute left-12 top-1/2 -translate-y-1/2 text-base text-slate-500 transition-opacity duration-200 ease-out"
         aria-hidden="true"
       >Search {toolCount} tools…</span>
       <ul
@@ -72,10 +75,10 @@ const toolCount = tools.length;
   </header>
 
   <!-- Tool directory -->
-  <main id="tools" class="page-shell">
+  <div id="tools" class="page-shell">
     {categories.map((cat) => (
       <section id={cat.id} class="mb-14" aria-label={cat.label}>
-        <h2 class="mb-6 text-xs font-semibold uppercase tracking-widest text-slate-400">
+        <h2 class="mb-6 text-xs font-semibold uppercase tracking-widest text-slate-500">
           {cat.label}
         </h2>
         <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -91,7 +94,7 @@ const toolCount = tools.length;
         </div>
       </section>
     ))}
-  </main>
+  </div>
 
   <!-- Use cases strip -->
   <section class="border-t border-slate-200 bg-surface" aria-label="Example use cases">
@@ -120,6 +123,8 @@ const toolCount = tools.length;
     </div>
   </section>
 
+  </main>
+
 </MainLayout>
 
 <script type="application/json" id="tool-search-data" is:inline set:html={JSON.stringify(searchTools)} />
@@ -147,7 +152,7 @@ const toolCount = tools.length;
       );
 
       if (matches.length === 0) {
-        results.innerHTML = '<li class="px-4 py-3 text-sm text-slate-400">No tools match that search.</li>';
+        results.innerHTML = '<li class="px-4 py-3 text-sm text-slate-500">No tools match that search.</li>';
       } else {
         matches.forEach((t) => {
           const li = document.createElement('li');

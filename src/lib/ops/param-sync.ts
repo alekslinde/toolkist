@@ -133,7 +133,8 @@ export interface PresetBarOptions {
  *
  * On load, this also applies params from the URL if the page was opened with
  * a shared link, so a pasted `?op=…&quality=50` link reproduces the sender's
- * settings before the user touches anything.
+ * settings before the user touches anything. The load dropdown hides itself
+ * while no presets are saved; saving re-renders it into view.
  */
 export function wirePresetBar(containerId: string, opts: PresetBarOptions): void {
   const { op, getParams, applyParams } = opts;
@@ -155,6 +156,10 @@ export function wirePresetBar(containerId: string, opts: PresetBarOptions): void
       option.textContent = p.name;
       select.appendChild(option);
     }
+    // An empty dropdown is a dead control — hide it until the first save
+    // creates something to load. Save/Copy stay visible throughout: they are
+    // the only path to a first preset, so hiding them too would deadlock.
+    select.hidden = presets.length === 0;
   }
 
   select?.addEventListener('change', () => {

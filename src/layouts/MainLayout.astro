@@ -186,8 +186,8 @@ const schemas = tool
         </a>
         <button
           id="version-btn"
-          class="hidden cursor-pointer bg-transparent text-xs text-on-dark-faint transition-colors hover:text-on-dark-dim lg:block"
-          aria-label="View changelog"
+          class="hidden cursor-pointer bg-transparent text-xs text-on-dark-dim transition-colors hover:text-on-dark lg:block"
+          aria-label={`View changelog (v${currentVersion})`}
         >v{currentVersion}</button>
 
         <!-- Mobile hamburger -->
@@ -260,8 +260,8 @@ const schemas = tool
       </div>
       <button
         id="version-btn-mob"
-        class="cursor-pointer bg-transparent text-xs text-on-dark-faint transition-colors hover:text-on-dark-dim"
-        aria-label="View changelog"
+        class="cursor-pointer bg-transparent text-xs text-on-dark-dim transition-colors hover:text-on-dark"
+        aria-label={`View changelog (v${currentVersion})`}
       >v{currentVersion}</button>
     </div>
   </div>
@@ -292,9 +292,10 @@ const schemas = tool
     </div>
   </div>
 
-  <!-- Page content -->
+  <!-- Page content: tool pages get the main landmark here; the home page
+       carries its own <main id="tools"> below, so it is exempt. -->
   <div class="flex min-h-screen flex-col pt-14">
-    <slot />
+    {path === '/' ? <slot /> : <main><slot /></main>}
     <footer class="mt-auto border-t border-white/10 bg-sidebar px-(--gutter) py-8 text-center">
       <section class="mx-auto max-w-xl text-sm leading-relaxed ">
         <p class="text-on-dark-dim">Built by <a href="https://alekslinde.com/" class="text-purple-400 hover:text-purple-300 transition-colors">Aleks Linde</a>.</p>
