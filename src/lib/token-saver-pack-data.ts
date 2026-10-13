@@ -1,0 +1,23 @@
+/** Domain pack: pack-data */
+export const pack: Record<string, string> = {
+  "machine learning": "ML", "deep learning": "DL",
+  "neural network": "NN", "natural language processing": "NLP",
+  "large language model": "LLM", "large language models": "LLMs",
+  "training data": "train data", "test data": "test set",
+  "validation data": "val set", "training set": "train set",
+  "data preprocessing": "preprocessing", "feature engineering": "feat eng",
+  "hyperparameter tuning": "HPO", "gradient descent": "GD",
+  "stochastic gradient descent": "SGD", "backpropagation": "backprop",
+  "convolutional neural network": "CNN", "recurrent neural network": "RNN",
+  "long short term memory": "LSTM", "transformer model": "transformer",
+  "attention mechanism": "attention", "embedding vector": "embedding",
+  "loss function": "loss fn", "activation function": "activation fn",
+  "batch normalization": "batch norm", "dropout layer": "dropout",
+  "confusion matrix": "confusion mx", "precision recall": "P/R",
+  "area under the curve": "AUC", "receiver operating characteristic": "ROC",
+  "mean squared error": "MSE", "mean absolute error": "MAE",
+  "cross entropy": "XE", "regularization term": "reg term",
+  "data augmentation": "augmentation", "transfer learning": "transfer",
+  "fine tuning": "fine-tune", "zero shot": "0-shot", "few shot": "few-shot",
+  "chain of thought": "CoT", "retrieval augmented generation": "RAG",
+};
