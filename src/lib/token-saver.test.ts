@@ -59,11 +59,25 @@ describe('Defluffer / compressPrompt', () => {
     expect(out.toLowerCase()).toMatch(/\bmessage\b/);
   });
 
+  it('still abbreviates high-value jargon (not on preserve list)', () => {
+    const engine = new Defluffer(coreDictionaries);
+    const out = engine.compress(
+      'Update the configuration and authentication for the application environment.'
+    );
+    const lower = out.toLowerCase();
+    // These synonym targets should still fire after the preserve-list trim
+    expect(lower).toMatch(/\bconfig\b/);
+    expect(lower).toMatch(/\bauth\b/);
+    expect(lower).toMatch(/\bapp\b/);
+    expect(lower).toMatch(/\benv\b/);
+  });
+
   it('preserves proper-case and acronyms', () => {
     expect(shouldPreserveToken('PostgreSQL')).toBe(true);
     expect(shouldPreserveToken('GraphQL')).toBe(true);
     expect(shouldPreserveToken('HTTP')).toBe(true);
     expect(shouldPreserveToken('authentication')).toBe(false);
+    expect(shouldPreserveToken('configuration')).toBe(false);
   });
 });
 
@@ -93,10 +107,12 @@ describe('wordDiff', () => {
     expect(types).toContain('equal');
   });
 
-  it('renders HTML with del/ins tags', () => {
-    const html = wordDiffHtml('could you please help', 'help');
+  it('renders HTML with del/ins tags and escapes markup', () => {
+    const html = wordDiffHtml('could you please help <script>', 'help <script>');
     expect(html).toContain('<del');
     expect(html).toContain('help');
+    expect(html).toContain('<script>');
+    expect(html).not.toContain('<script>');
   });
 });
 
