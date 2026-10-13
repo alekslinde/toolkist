@@ -76,13 +76,15 @@ export default defineConfig({
   vite: {
     plugins: [tailwindcss(), wawoff2BindingFix],
     // The overweight chunks are deliberate, route-scoped codec payloads —
-    // wawoff2 compress (~930 kB) and svgo (~560 kB) — each loaded only by the
-    // single tool page that needs it. That weight is inherent to vendored
-    // WASM/codecs, not accidental bloat, so the limit is raised to match the
-    // largest legitimate chunk rather than worked around with lazy-loading
-    // that would only delay a dependency the tool cannot run without.
+    // wawoff2 compress (~930 kB), svgo (~560 kB) and the o200k BPE ranks
+    // (~2.1 MB, loaded only by the Prompt Token Saver page for real token
+    // counts) — each loaded only by the single tool page that needs it.
+    // That weight is inherent to vendored WASM/codecs/rank tables, not
+    // accidental bloat, so the limit is raised to match the largest
+    // legitimate chunk rather than worked around with lazy-loading that
+    // would only delay a dependency the tool cannot run without.
     build: {
-      chunkSizeWarningLimit: 1000,
+      chunkSizeWarningLimit: 2200,
     },
     optimizeDeps: {
       include: ['alpinejs', 'wawoff2/decompress', 'wawoff2/compress', 'upng-js', 'pdf-lib', 'opentype.js'],
