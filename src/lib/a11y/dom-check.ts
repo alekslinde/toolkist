@@ -25,7 +25,9 @@ import {
   VALID_ROLES,
 } from './aria-data.js';
 
-/** Build a stable-ish CSS selector for an element. */
+/** Build a stable-ish CSS selector for an element. Uses the element's own id
+ *  when it has one; ancestor ids are deliberately left out so the selector
+ *  stays comparable with the static engine's tag-based form (see dedupeKey). */
 function selectorFor(el: Element): string {
   if (el.id) return `#${el.id}`;
   const parts: string[] = [];
@@ -38,7 +40,6 @@ function selectorFor(el: Element): string {
       const sibs = Array.from(parent.children).filter(c => c.tagName === cur!.tagName);
       parts.unshift(sibs.length > 1 ? `${tag}:nth-of-type(${sibs.indexOf(cur) + 1})` : tag);
     } else parts.unshift(tag);
-    if (cur.id) { parts[0] = `#${cur.id}`; break; }
     cur = parent;
   }
   return parts.join(' > ') || el.tagName.toLowerCase();
@@ -98,7 +99,9 @@ function isFocusable(el: Element): boolean {
   const ti = el.getAttribute('tabindex');
   if (ti !== null && Number(ti) >= 0) return true;
   if (el.hasAttribute('disabled')) return false;
-  if (tag === 'a') return el.hasAttribute('href');
+  // <a> and <area> are focusable only with an href; other natively
+  // focusable elements (button, input, …) always are.
+  if (tag === 'a' || tag === 'area') return el.hasAttribute('href');
   return NATIVELY_FOCUSABLE.has(tag);
 }
 
@@ -113,6 +116,23 @@ function inlineStyle(el: Element): Record<string, string> {
   return out;
 }
 
+/** Resolve an inline `font-size` to px. Returns null when the unit needs page
+ *  context (percentages of an unknown parent, named sizes) — callers then use
+ *  the stricter 4.5:1 threshold rather than guessing "large". */
+function fontSizePx(raw: string | undefined): number | null {
+  if (!raw) return 16;
+  const m = /^\s*([+-]?(?:\d+\.?\d*|\.\d+))\s*(px|em|rem|pt|%)?\s*$/i.exec(raw);
+  if (!m) return null;
+  const n = parseFloat(m[1]);
+  switch ((m[2] ?? 'px').toLowerCase()) {
+    case 'px': return n;
+    case 'em':
+    case 'rem': return n * 16;
+    case 'pt': return n * (96 / 72);
+    case '%': return (n / 100) * 16;
+    default: return null;
+  }
+}
 /** Nearest ancestor background colour declared inline, if any. */
 function inheritedBackground(el: Element): RgbaColor | null {
   let cur: Element | null = el;
@@ -161,19 +181,24 @@ export function domCheck(source: string, parser?: DOMParser): Issue[] {
   }
 
   // ── 2. form-label ───────────────────────────────────────────────────────
+  // Collect `for` targets up front: matching by attribute value avoids CSS
+  // selector-escaping entirely (ids may contain `.`, `:`, `[` …).
+  const labelFors = new Set(
+    Array.from(doc.querySelectorAll('label[for]')).map(
+      l => l.getAttribute('for') ?? '',
+    ),
+  );
   for (const ctl of Array.from(doc.querySelectorAll('input, select, textarea'))) {
     const tag = ctl.tagName.toLowerCase();
     const type = (ctl.getAttribute('type') ?? 'text').toLowerCase();
     if (tag === 'input' && UNLABELLABLE_INPUT_TYPES.has(type)) continue;
     if (isHiddenFromAT(ctl)) continue;
     const wrapped = ctl.closest('label');
-    const forLabel = ctl.id
-      ? doc.querySelector(`label[for="${CSS_escape(ctl.id)}"]`)
-      : null;
     const named = !!(ctl.getAttribute('aria-label')?.trim())
       || !!(ctl.getAttribute('aria-labelledby')?.trim())
       || !!(ctl.getAttribute('title')?.trim())
-      || !!wrapped || !!forLabel;
+      || !!wrapped
+      || (ctl.id !== '' && labelFors.has(ctl.id));
     if (!named) {
       add('form-label', 'err',
         `<${tag}> has no associated label, so its purpose is unannounced.`,
@@ -315,9 +340,11 @@ export function domCheck(source: string, parser?: DOMParser): Issue[] {
   // ── 9. aria-valid ───────────────────────────────────────────────────────
   for (const el of Array.from(doc.querySelectorAll('*'))) {
     const rawRole = el.getAttribute('role');
+    let roleValid = true;
     if (rawRole) {
       for (const r of rawRole.trim().split(/\s+/)) {
         if (!VALID_ROLES.has(r.toLowerCase())) {
+          roleValid = false;
           add('aria-valid', 'err', `role="${r}" is not a valid ARIA role.`,
             'Use a role from the ARIA specification, or remove the attribute.', selectorFor(el));
         }
@@ -332,6 +359,9 @@ export function domCheck(source: string, parser?: DOMParser): Issue[] {
           'Check the spelling against the ARIA specification.', selectorFor(el));
         continue;
       }
+      // No permit-table warning when the role itself is already flagged —
+      // one finding per problem keeps the report readable.
+      if (!roleValid) continue;
       const permitted = ROLE_PERMITTED_ATTRS[nm];
       if (permitted && effectiveRole && !permitted.has(effectiveRole)) {
         add('aria-valid', 'warn',
@@ -355,9 +385,10 @@ export function domCheck(source: string, parser?: DOMParser): Issue[] {
     if (!bg) { contrastUnresolved++; continue; }
 
     const ratio = contrastRatioRgb(fg, bg);
-    const fontSize = parseFloat(s['font-size'] ?? '16');
+    const px = fontSizePx(s['font-size']);
     const bold = /bold|[7-9]00/.test(s['font-weight'] ?? '');
-    const large = fontSize >= 24 || (bold && fontSize >= 18.66);
+    // Unknown units resolve to null and take the stricter threshold.
+    const large = px !== null && (px >= 24 || (bold && px >= 18.66));
     const min = large ? 3 : 4.5;
     if (ratio < min) {
       add('contrast', 'err',
@@ -531,6 +562,9 @@ export function domCheck(source: string, parser?: DOMParser): Issue[] {
   }
 
   // ── 20. hidden-focus (dom only) ─────────────────────────────────────────
+  // Only `aria-hidden` hosts qualify: `hidden`/display:none removes the
+  // element from the tab order in real browsers, so there is nothing to flag,
+  // while aria-hidden keeps keyboard reachability — the actual hazard.
   for (const host of Array.from(doc.querySelectorAll('[aria-hidden="true"]'))) {
     const focusables = [
       ...(isFocusable(host) ? [host] : []),
@@ -547,9 +581,4 @@ export function domCheck(source: string, parser?: DOMParser): Issue[] {
   }
 
   return issues;
-}
-
-/** CSS.escape is not available in every parser host; this covers id syntax. */
-function CSS_escape(s: string): string {
-  return s.replace(/["\\\]]/g, '\\$&');
 }

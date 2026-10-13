@@ -1,9 +1,11 @@
 /**
  * ARIA reference data shared by both engines.
  *
- * Deliberately a subset of the full ARIA 1.2 spec: roles and attributes that
- * appear in real markup and whose misuse is unambiguous. An unknown name here
- * is reported as unknown, not guessed at.
+ * ARIA 1.2 roles and states/properties, plus the 1.3 additions already
+ * shipped in browsers (`aria-description`, `aria-braillelabel`,
+ * `aria-brailleroledescription`). Deliberately a subset of the full spec:
+ * roles and attributes that appear in real markup and whose misuse is
+ * unambiguous. An unknown name here is reported as unknown, not guessed at.
  */
 
 /** Valid ARIA role names (ARIA 1.2, abstract roles excluded). */
@@ -49,15 +51,15 @@ export const ROLE_PERMITTED_ATTRS: Readonly<Record<string, ReadonlySet<string>>>
   'aria-selected': new Set(['gridcell', 'option', 'row', 'tab', 'columnheader', 'rowheader', 'treeitem']),
   'aria-expanded': new Set(['application', 'button', 'checkbox', 'combobox', 'gridcell', 'link', 'listbox', 'menuitem', 'row', 'rowheader', 'tab', 'treeitem', 'columnheader', 'menuitemcheckbox', 'menuitemradio']),
   'aria-pressed': new Set(['button']),
-  'aria-level': new Set(['heading', 'listitem', 'row', 'treeitem', 'comment']),
+  'aria-level': new Set(['heading', 'listitem', 'row', 'treeitem']),
   'aria-required': new Set(['checkbox', 'combobox', 'gridcell', 'listbox', 'radiogroup', 'spinbutton', 'textbox', 'tree', 'searchbox', 'switch', 'slider', 'columnheader', 'rowheader']),
   'aria-valuenow': new Set(['meter', 'progressbar', 'scrollbar', 'slider', 'spinbutton', 'separator']),
   'aria-valuemin': new Set(['meter', 'progressbar', 'scrollbar', 'slider', 'spinbutton', 'separator']),
   'aria-valuemax': new Set(['meter', 'progressbar', 'scrollbar', 'slider', 'spinbutton', 'separator']),
   'aria-multiselectable': new Set(['grid', 'listbox', 'tablist', 'tree', 'treegrid']),
   'aria-sort': new Set(['columnheader', 'rowheader']),
-  'aria-posinset': new Set(['article', 'listitem', 'menuitem', 'option', 'radio', 'tab', 'treeitem', 'comment', 'menuitemcheckbox', 'menuitemradio', 'row']),
-  'aria-setsize': new Set(['article', 'listitem', 'menuitem', 'option', 'radio', 'tab', 'treeitem', 'comment', 'menuitemcheckbox', 'menuitemradio', 'row']),
+  'aria-posinset': new Set(['article', 'listitem', 'menuitem', 'option', 'radio', 'tab', 'treeitem', 'menuitemcheckbox', 'menuitemradio', 'row']),
+  'aria-setsize': new Set(['article', 'listitem', 'menuitem', 'option', 'radio', 'tab', 'treeitem', 'menuitemcheckbox', 'menuitemradio', 'row']),
 };
 
 /**
@@ -75,9 +77,10 @@ export const IMPLICIT_ROLES: Readonly<Record<string, string>> = {
   th: 'columnheader', thead: 'rowgroup', tr: 'row', ul: 'list',
 };
 
-/** Elements focusable without an explicit tabindex. */
+/** Elements focusable without an explicit tabindex (`a`/`area` need an href —
+ * see isFocusable — so they are not listed here). */
 export const NATIVELY_FOCUSABLE: ReadonlySet<string> = new Set([
-  'a', 'area', 'audio', 'button', 'details', 'embed', 'iframe', 'input',
+  'audio', 'button', 'details', 'embed', 'iframe', 'input',
   'object', 'select', 'summary', 'textarea', 'video',
 ]);
 

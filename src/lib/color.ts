@@ -165,10 +165,25 @@ export function parseCssColor(input: string): RgbaColor | null {
   const body = fn[2].trim();
   if (!body) return null;
 
+  // Legacy comma syntax and CSS Color 4 space syntax are mutually exclusive;
+  // mixing them (`rgb(255, 0 0)`) or omitting the slash alpha (`rgb(1 2 3 0.5)`)
+  // is invalid CSS that browsers drop. Resolving such a declaration would
+  // report contrast for a colour that never renders, so reject it as unknown.
   const [main, altAlpha] = body.split('/');
-  const parts = main.trim().split(/[\s,]+/).filter(Boolean);
+  if (body.split('/').length > 2) return null;
+  const hasComma = main.includes(',');
+  let parts: string[];
+  if (hasComma) {
+    if (altAlpha !== undefined) return null; // slash alpha needs space syntax
+    parts = main.split(',').map(p => p.trim());
+    if (parts.some(p => !p) || parts.length < 3 || parts.length > 4) return null;
+  } else {
+    parts = main.trim().split(/\s+/).filter(Boolean);
+    if (parts.length < 3 || parts.length > 4) return null;
+    // Space syntax needs a slash for alpha; a bare fourth value is invalid.
+    if (parts.length === 4 && altAlpha === undefined) return null;
+  }
   const alphaTok = altAlpha !== undefined ? altAlpha.trim() : parts[3];
-  if (parts.length < 3 || (altAlpha === undefined && parts.length > 4)) return null;
 
   let a = 1;
   if (alphaTok !== undefined) {

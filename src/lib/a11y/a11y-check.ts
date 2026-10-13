@@ -24,14 +24,22 @@ const RULE_INDEX = new Map(RULES.map((r, i) => [r.id, i]));
 /**
  * Normalise a selector for cross-engine comparison. The two engines describe
  * the same element differently (`img#hero (line 4)` vs `#hero`), so dedupe on
- * the id when there is one and fall back to the tag name otherwise.
+ * the element's own id when it has one, else on its own tag name (the last
+ * path segment — never an ancestor) plus the message, so two genuinely
+ * different findings on the same tag are not collapsed into one.
+ *
+ * Same-tag siblings with identical messages still merge; telling them apart
+ * would need structural matching the static engine cannot provide. The UI
+ * groups by severity, so a re-run after fixing surfaces any sibling.
  */
 function dedupeKey(i: Issue): string {
-  const id = /#([A-Za-z0-9_-]+)/.exec(i.sel)?.[1];
+  // The element's own id when present: a bare `#id` (DOM engine) or the
+  // trailing `#id` in `tag#id (line n)` (static engine). Ancestor ids never
+  // appear — selectorFor leaves them out — so a match means same element.
+  const last = i.sel.split('>').map(s => s.trim()).pop() ?? i.sel;
+  const id = /#([A-Za-z0-9_-]+)/.exec(last)?.[1];
   if (id) return `${i.ruleId}|#${id}`;
-  const tag = /^([a-z][a-z0-9]*)/i.exec(i.sel)?.[1]?.toLowerCase();
-  // Without an id the selectors are not comparable; keep the message so two
-  // genuinely different findings on the same tag are not collapsed into one.
+  const tag = /^([a-z][a-z0-9]*)/i.exec(last)?.[1]?.toLowerCase();
   return `${i.ruleId}|${tag ?? i.sel}|${i.msg}`;
 }
 
@@ -87,7 +95,7 @@ export function a11yCheck(source: string, opts: CheckOptions = {}): CheckResult 
   return { issues, summary: summarise(issues) };
 }
 
-/** Stable JSON export for the UI download and the VS Code extension. */
+/** Stable JSON export for the UI download and external integrations. */
 export function toJson(result: CheckResult, meta: Record<string, unknown> = {}): string {
   return JSON.stringify({
     tool: 'toolkist-accessibility-checker',

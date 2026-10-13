@@ -317,6 +317,15 @@ describe('parseCssColor', () => {
     expect(parseCssColor('rgb(1, 2)')).toBeNull();
     expect(parseCssColor('rgb()')).toBeNull();
   });
+
+  // Mixed comma/space syntax and slash-less space alpha are invalid CSS that
+  // browsers drop — resolving them would report contrast for unrendered colour.
+  it('returns null for mixed comma/space syntax', () => {
+    expect(parseCssColor('rgb(255, 0 0)')).toBeNull();
+    expect(parseCssColor('rgb(255 0, 0)')).toBeNull();
+    expect(parseCssColor('rgb(255 0 0 0.5)')).toBeNull();
+    expect(parseCssColor('rgb(255, 0, 0 / 50%)')).toBeNull();
+  });
 });
 
 describe('contrastRatioRgb', () => {

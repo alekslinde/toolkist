@@ -8,11 +8,6 @@ const fixture = (n: string) =>
   readFileSync(join(__dirname, '__fixtures__', `a11y-${n}.html`), 'utf8');
 
 const ids = (issues: Issue[]) => issues.map(i => i.ruleId);
-/** Rule ids found by both engines, for the `both`-engine rules. */
-const bothIds = (src: string) => ({
-  ast: ids(astCheck(src)),
-  dom: ids(domCheck(src)),
-});
 
 /**
  * Each rule gets one markup sample that must trigger it and one that must not.
@@ -22,8 +17,6 @@ const CASES: Array<{
   rule: RuleId;
   bad: string;
   good: string;
-  /** Rules the good sample legitimately trips, excluded from its assertion. */
-  engines?: Array<'ast' | 'dom'>;
 }> = [
   {
     rule: 'img-alt',
@@ -120,6 +113,18 @@ describe.each(CASES)('rule: $rule', ({ rule, bad, good }) => {
   });
 });
 
+// Every registered rule must have a bad/good case above or a dedicated
+// dom-only describe below — a rule without a test drifts silently.
+describe('registry coverage', () => {
+  it('covers every rule in RULES', () => {
+    const domOnly: RuleId[] = ['landmarks', 'contrast', 'focus-ind', 'skip-link', 'hidden-focus'];
+    const covered = new Set([...CASES.map(c => c.rule), ...domOnly]);
+    for (const r of RULES) {
+      expect(covered.has(r.id), `rule ${r.id} has no test case`).toBe(true);
+    }
+  });
+});
+
 // ── DOM-only rules ────────────────────────────────────────────────────────
 
 describe('rule: landmarks (dom only)', () => {
@@ -187,6 +192,16 @@ describe('rule: contrast (dom only)', () => {
     // 3.5:1 — fails for body text, passes at 24px.
     const small = '<p style="color:#949494;background-color:#ffffff;font-size:16px">x</p>';
     const large = '<p style="color:#949494;background-color:#ffffff;font-size:26px">x</p>';
+    expect(domCheck(small).filter(i => i.ruleId === 'contrast' && i.sev === 'err').length)
+      .toBeGreaterThan(0);
+    expect(domCheck(large).filter(i => i.ruleId === 'contrast' && i.sev === 'err'))
+      .toHaveLength(0);
+  });
+
+  it('resolves relative font-size units against a 16px baseline', () => {
+    // #949494 on white is ~3.5:1 — an err at body size, fine at 1.625em (26px).
+    const small = '<p style="color:#949494;background-color:#ffffff;font-size:1em">x</p>';
+    const large = '<p style="color:#949494;background-color:#ffffff;font-size:1.625em">x</p>';
     expect(domCheck(small).filter(i => i.ruleId === 'contrast' && i.sev === 'err').length)
       .toBeGreaterThan(0);
     expect(domCheck(large).filter(i => i.ruleId === 'contrast' && i.sev === 'err'))
@@ -270,6 +285,12 @@ describe('false-positive guards', () => {
     expect(ids(domCheck(html))).not.toContain('form-label');
   });
 
+  it('matches labels to ids containing selector syntax', () => {
+    const html = '<label for="a.b:c">Name</label><input id="a.b:c" type="text">';
+    expect(ids(astCheck(html))).not.toContain('form-label');
+    expect(ids(domCheck(html))).not.toContain('form-label');
+  });
+
   it('still flags a control that has left the wrapping label', () => {
     const html = '<label>Email <input type="email"></label><input type="text">';
     expect(ids(astCheck(html))).toContain('form-label');
@@ -331,6 +352,12 @@ describe('false-positive guards', () => {
     expect(ids(astCheck('<button aria-pressed="true">x</button>'))).not.toContain('aria-valid');
     expect(ids(domCheck('<button aria-pressed="true">x</button>'))).not.toContain('aria-valid');
   });
+
+  it('reports an invalid role once, without a permit-table follow-up', () => {
+    for (const issues of [astCheck('<div role="buton" aria-pressed="true">x</div>'), domCheck('<div role="buton" aria-pressed="true">x</div>')]) {
+      expect(issues.filter(i => i.ruleId === 'aria-valid')).toHaveLength(1);
+    }
+  });
 });
 
 // ── JSX confidence (roadmap §4.2) ─────────────────────────────────────────
@@ -372,6 +399,14 @@ describe('merge', () => {
     expect(imgIssues).toHaveLength(1);
     expect(imgIssues[0].engine).toBe('dom');
     expect(imgIssues[0].confidence).toBe('exact');
+  });
+
+  it('merges nested id-less findings on the same element', () => {
+    const src = '<main><section><img src="a.png"></section></main>';
+    const merged = mergeIssues(astCheck(src), domCheck(src));
+    const imgIssues = merged.filter(i => i.ruleId === 'img-alt');
+    expect(imgIssues).toHaveLength(1);
+    expect(imgIssues[0].engine).toBe('dom');
   });
 
   it('keeps static-only findings the DOM engine cannot reach', () => {
