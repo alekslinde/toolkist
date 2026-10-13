@@ -1,20 +1,23 @@
 import { defineConfig } from 'vitest/config';
 import { fileURLToPath } from 'node:url';
 
-// Two projects rather than one global environment: the a11y DOM engine needs
-// DOMParser (jsdom), every other suite runs faster under node.
-// `environmentMatchGlobs` did the same job before Vitest 4 removed it.
+// Mirrors the "@/*" path alias in tsconfig.json so a lib module can import
+// from src/ the same way under Astro and under test. Defined per-project:
+// Vitest 4 projects do not inherit root `resolve` settings.
+const srcAlias = {
+  '@': fileURLToPath(new URL('./src', import.meta.url)),
+};
+
 export default defineConfig({
-  // Mirrors the "@/*" path alias in tsconfig.json so a lib module can import
-  // from src/ the same way under Astro and under test.
   resolve: {
-    alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url)),
-    },
+    alias: srcAlias,
   },
   test: {
     projects: [
       {
+        resolve: {
+          alias: srcAlias,
+        },
         test: {
           name: 'node',
           environment: 'node',
@@ -23,6 +26,9 @@ export default defineConfig({
         },
       },
       {
+        resolve: {
+          alias: srcAlias,
+        },
         test: {
           name: 'jsdom',
           environment: 'jsdom',
