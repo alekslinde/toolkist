@@ -2,6 +2,7 @@
  * Defluffer — phrase collapse, synonym swap, code-block protection.
  */
 import type { CoreDictionaries } from "./token-saver-dicts";
+import { shouldPreserveToken } from "./token-saver-preserve";
 
 // ─── DEFLUFFER ───────────────────────────────────────────────────────────────
 export class Defluffer {
@@ -84,12 +85,14 @@ export class Defluffer {
     // 4. Tokenize
     let tokens = text.split(/(\b[a-zA-Z0-9_'-]+\b)/);
 
-    // 5. Per-token: single-word blacklist + synonyms
+    // 5. Per-token: single-word blacklist + synonyms (with preserve-list)
     tokens = tokens.map((token) => {
       if (!/^[a-zA-Z0-9_'-]+$/.test(token)) return token;
       if (/^PROT\d+PROT$/.test(token)) return token;
       const lower = token.toLowerCase();
       if (this.blacklist.has(lower)) return '';
+      // Safer synonyms: skip ambiguous / proper-case / acronym tokens
+      if (shouldPreserveToken(token)) return token;
       if (this.synonyms[lower]) return this.synonyms[lower];
       return token;
     });
