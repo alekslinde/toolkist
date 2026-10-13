@@ -11,14 +11,25 @@ The build must complete with no errors. If it fails, fix the root cause — do n
 ## Step 3 — start the preview server
 
 ```bash
-npm run preview
+npm run preview:worker
 ```
+
+Use `preview:worker`, not `preview`. `astro preview` serves `dist/` as static
+files with no Worker, so `/pv`, `/feedback` and `/u` return 404 on every page
+and the console fills with errors that do not exist in production. Those false
+positives train you to ignore real ones.
+
+Wrangler needs ~10s to boot; wait for `Ready on http://localhost:<port>` before
+starting the browser, and point the checks at that port.
 
 ## Step 4 — check for runtime console errors with a headless browser
 
 ```bash
 npx puppeteer browsers install chrome 2>/dev/null; node -e "
 const p = require('puppeteer');
+// Port that wrangler dev reported in step 3 — never assume 3000, which is a
+// common default for unrelated projects that may be running on this machine.
+const BASE = process.env.BASE || 'http://localhost:8787';
 (async () => {
   const browser = await p.launch({ args: ['--no-sandbox'] });
   const pages = [
@@ -49,7 +60,10 @@ const p = require('puppeteer');
     const errors = [];
     pg.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
     pg.on('pageerror', e => errors.push(e.message));
-    await pg.goto('http://localhost:3000' + url, { waitUntil: 'networkidle0', timeout: 15000 });
+    // Failed requests count too: a 404 is a successful response, so a bare
+    // .catch() in page code hides it from 'console' but not from here.
+    pg.on('response', r => { if (r.status() >= 400) errors.push('HTTP ' + r.status() + ' ' + r.url()); });
+    await pg.goto(BASE + url, { waitUntil: 'networkidle0', timeout: 15000 });
     if (errors.length) {
       console.error('ERRORS on ' + url + ':');
       errors.forEach(e => console.error('  ' + e));

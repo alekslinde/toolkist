@@ -18,7 +18,7 @@ export const navCategories: NavCategory[] = [
   {
     label: 'Code & Web',
     href: '/#code',
-    matches: ['/tools/code', '/tools/scss', '/tools/semantic', '/tools/brand', '/tools/xd', '/tools/token', '/tools/svg'],
+    matches: ['/tools/accessibility', '/tools/code', '/tools/scss', '/tools/semantic', '/tools/brand', '/tools/xd', '/tools/token', '/tools/svg'],
   },
   {
     label: 'Text & Data',

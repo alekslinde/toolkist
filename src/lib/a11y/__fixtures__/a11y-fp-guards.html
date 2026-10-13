@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en-GB">
+<head><title>False positive guards</title></head>
+<body>
+  <a href="#main">Skip to main content</a>
+  <nav aria-label="Primary"><a href="/docs">Documentation home</a></nav>
+  <main id="main">
+    <h1>Guards</h1>
+    <img src="spacer.gif" alt="" role="presentation">
+    <label>
+      <span class="visually-hidden" style="position:absolute;left:-9999px">Search query</span>
+      <input type="search">
+    </label>
+    <button><svg aria-hidden="true"><title>Download</title></svg></button>
+    <button aria-label="Close panel"><span aria-hidden="true">&times;</span></button>
+    <table role="presentation"><tr><td>layout only</td></tr></table>
+    <input type="hidden" name="csrf" value="abc">
+    <div aria-hidden="true"><span>Decorative, nothing focusable</span></div>
+  </main>
+</body>
+</html>

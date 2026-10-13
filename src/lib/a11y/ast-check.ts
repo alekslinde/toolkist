@@ -1,0 +1,580 @@
+/**
+ * Static source engine.
+ *
+ * Scans markup as text, so it works on JSX and Astro templates that never
+ * render. It cannot resolve structure: conditionals, `.map()` loops and spread
+ * props hide the real tree. Rules that need structure emit `confidence:
+ * 'approx'` on JSX input rather than claiming certainty.
+ *
+ * Despite the filename this is not an AST — see the roadmap's naming note. The
+ * name is kept so the `engine` field reads consistently across both engines.
+ */
+
+import type { Confidence, Issue, RuleId, Severity, SourceKind } from './types.js';
+import {
+  IMPLICIT_ROLES,
+  INTERACTIVE_ELEMENTS,
+  INTERACTIVE_ROLES,
+  NON_DESCRIPTIVE_LINK_TEXT,
+  PRESENTATIONAL_ROLES,
+  ROLE_PERMITTED_ATTRS,
+  UNLABELLABLE_INPUT_TYPES,
+  VALID_ARIA_ATTRS,
+  VALID_ROLES,
+} from './aria-data.js';
+
+export interface Tag {
+  name: string;
+  attrs: Record<string, string>;
+  /** Attribute names whose value could not be read statically (`{...spread}`). */
+  dynamic: boolean;
+  start: number;
+  end: number;
+  selfClosing: boolean;
+  closing: boolean;
+  /** 1-based line number, for editor diagnostics. */
+  line: number;
+}
+
+const VOID_ELEMENTS = new Set([
+  'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta',
+  'param', 'source', 'track', 'wbr',
+]);
+
+/** Strip comments and the contents of script/style so they are never scanned. */
+function stripNonMarkup(src: string): string {
+  // Replace with same-length whitespace so offsets stay accurate.
+  const blank = (m: string) => m.replace(/[^\n]/g, ' ');
+  return src
+    .replace(/<!--[\s\S]*?-->/g, blank)
+    .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi, blank);
+}
+
+const TAG_RE = /<(\/?)([a-zA-Z][a-zA-Z0-9:._-]*)((?:[^>"'{]|"[^"]*"|'[^']*'|\{[^}]*\})*)(\/?)>/g;
+const ATTR_RE = /([a-zA-Z_:@][a-zA-Z0-9:._$-]*)\s*(?:=\s*("([^"]*)"|'([^']*)'|\{([^}]*)\}|([^\s"'>]+)))?/g;
+
+/** Tokenize markup into tags. Text nodes are recovered separately via offsets. */
+export function tokenize(source: string): Tag[] {
+  const src = stripNonMarkup(source);
+  const tags: Tag[] = [];
+  // Precompute line starts so line numbers cost one binary search each.
+  const lineStarts: number[] = [0];
+  for (let i = 0; i < src.length; i++) if (src[i] === '\n') lineStarts.push(i + 1);
+  const lineOf = (pos: number) => {
+    let lo = 0, hi = lineStarts.length - 1;
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >> 1;
+      if (lineStarts[mid] <= pos) lo = mid; else hi = mid - 1;
+    }
+    return lo + 1;
+  };
+
+  TAG_RE.lastIndex = 0;
+  let m: RegExpExecArray | null;
+  while ((m = TAG_RE.exec(src)) !== null) {
+    const [full, slash, rawName, rawAttrs, selfSlash] = m;
+    const name = rawName.toLowerCase();
+    const attrs: Record<string, string> = {};
+    let dynamic = /\{\s*\.\.\./.test(rawAttrs);
+
+    if (!slash) {
+      ATTR_RE.lastIndex = 0;
+      let a: RegExpExecArray | null;
+      while ((a = ATTR_RE.exec(rawAttrs)) !== null) {
+        const key = a[1].toLowerCase();
+        if (key === 'class' || key === 'classname') continue;
+        // a[3]/a[4] = quoted, a[5] = JSX expression, a[6] = bare
+        const expr = a[5];
+        if (expr !== undefined) {
+          // A JSX expression's value is unknowable statically. Record a string
+          // literal if that is all it is; otherwise mark the value dynamic.
+          const lit = /^\s*(['"])([\s\S]*?)\1\s*$/.exec(expr);
+          if (lit) {
+            attrs[key] = lit[2];
+          } else {
+            attrs[key] = '\x00dynamic';
+            dynamic = true;
+          }
+        } else {
+          attrs[key] = a[3] ?? a[4] ?? a[6] ?? '';
+        }
+      }
+    }
+
+    tags.push({
+      name,
+      attrs,
+      dynamic,
+      start: m.index,
+      end: m.index + full.length,
+      selfClosing: selfSlash === '/' || VOID_ELEMENTS.has(name),
+      closing: slash === '/',
+      line: lineOf(m.index),
+    });
+  }
+  return tags;
+}
+
+/** True when an attribute exists with a statically-known, non-empty value. */
+function hasValue(t: Tag, attr: string): boolean {
+  const v = t.attrs[attr];
+  return v !== undefined && v !== '' && v !== '\x00dynamic';
+}
+
+function isDynamicValue(t: Tag, attr: string): boolean {
+  return t.attrs[attr] === '\x00dynamic';
+}
+
+/**
+ * Text between a tag and its matching close, with nested tags removed.
+ *
+ * When no closing tag is found the element is unclosed — a truncated paste or a
+ * JSX fragment. Reading to the end of source is the safe reading: it can only
+ * find more text, so a genuinely empty element still reports empty, while valid
+ * but unterminated markup is not accused of having no accessible name.
+ */
+function innerText(src: string, tags: Tag[], idx: number): string {
+  const open = tags[idx];
+  if (open.selfClosing) return '';
+  let depth = 1;
+  let close = -1;
+  for (let i = idx + 1; i < tags.length; i++) {
+    const t = tags[i];
+    if (t.name !== open.name) continue;
+    if (t.closing) {
+      if (--depth === 0) { close = t.start; break; }
+    } else if (!t.selfClosing) depth++;
+  }
+  const end = close === -1 ? src.length : close;
+  return src.slice(open.end, end).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+/** Accessible name per roadmap §4.1: labelledby > label > text > alt|title|value. */
+export function accessibleName(
+  src: string, tags: Tag[], idx: number,
+): { name: string; fromDynamic: boolean } {
+  const t = tags[idx];
+  if (hasValue(t, 'aria-labelledby')) return { name: '\x00ref', fromDynamic: false };
+  if (isDynamicValue(t, 'aria-labelledby')) return { name: '\x00ref', fromDynamic: true };
+  if (hasValue(t, 'aria-label')) return { name: t.attrs['aria-label'], fromDynamic: false };
+  if (isDynamicValue(t, 'aria-label')) return { name: '\x00dyn', fromDynamic: true };
+
+  const text = innerText(src, tags, idx);
+  if (text) return { name: text, fromDynamic: /\{/.test(text) };
+
+  for (const attr of ['alt', 'title', 'value']) {
+    if (hasValue(t, attr)) return { name: t.attrs[attr], fromDynamic: false };
+    if (isDynamicValue(t, attr)) return { name: '\x00dyn', fromDynamic: true };
+  }
+  return { name: '', fromDynamic: t.dynamic };
+}
+
+/** A name exists if it resolved to text, a reference, or a dynamic expression. */
+function hasName(r: { name: string; fromDynamic: boolean }): boolean {
+  return r.name.length > 0;
+}
+
+function selectorFor(t: Tag): string {
+  const id = hasValue(t, 'id') ? `#${t.attrs.id}` : '';
+  return `${t.name}${id} (line ${t.line})`;
+}
+
+function roleOf(t: Tag): string | undefined {
+  const explicit = t.attrs.role;
+  if (explicit && explicit !== '\x00dynamic') return explicit.trim().split(/\s+/)[0].toLowerCase();
+  return IMPLICIT_ROLES[t.name];
+}
+
+function isHiddenFromAT(t: Tag): boolean {
+  return t.attrs['aria-hidden'] === 'true'
+    || PRESENTATIONAL_ROLES.has(t.attrs.role ?? '')
+    || t.attrs.hidden !== undefined;
+}
+
+/**
+ * Run the static engine.
+ *
+ * @param source raw markup (HTML, JSX or Astro template text)
+ * @param kind   `jsx` downgrades structural rules to `confidence: 'approx'`
+ */
+export function astCheck(source: string, kind: SourceKind = 'html'): Issue[] {
+  const tags = tokenize(source);
+  const issues: Issue[] = [];
+  // Structural rules cannot see the real tree in JSX — say so rather than imply
+  // certainty. See roadmap §4.2.
+  const structural: Confidence = kind === 'jsx' ? 'approx' : 'exact';
+
+  const add = (
+    ruleId: RuleId, sev: Severity, msg: string, fix: string, sel: string,
+    confidence: Confidence = 'exact',
+  ) => { issues.push({ ruleId, engine: 'ast', sev, confidence, msg, fix, sel }); };
+
+  const open = tags.filter(t => !t.closing);
+
+  // ── 1. img-alt ──────────────────────────────────────────────────────────
+  for (const t of open) {
+    if (t.name !== 'img') continue;
+    const conf: Confidence = t.dynamic ? 'approx' : 'exact';
+    if (t.attrs.alt === undefined) {
+      if (isDynamicValue(t, 'alt')) continue;
+      add('img-alt', 'err',
+        'Image has no alt attribute, so assistive technology announces the filename or nothing.',
+        'Add alt text describing the image\'s purpose, or alt="" plus aria-hidden="true" if purely decorative.',
+        selectorFor(t), conf);
+    } else if (t.attrs.alt === '' && !isHiddenFromAT(t)) {
+      add('img-alt', 'warn',
+        'Image has an empty alt but is not marked decorative.',
+        'Add aria-hidden="true" or role="presentation" to confirm it is decorative, or supply alt text.',
+        selectorFor(t), conf);
+    }
+  }
+
+  // ── 2. form-label ───────────────────────────────────────────────────────
+  // Collect label targets first; in JSX the htmlFor may be dynamic.
+  const labelledIds = new Set<string>();
+  for (const t of open) {
+    if (t.name !== 'label') continue;
+    const f = t.attrs.for ?? t.attrs.htmlfor;
+    if (f && f !== '\x00dynamic') labelledIds.add(f);
+  }
+  // Depth of enclosing <label> elements: a control wrapped in one is labelled
+  // even with no `for`/`id` pair.
+  let labelDepth = 0;
+  for (let i = 0; i < tags.length; i++) {
+    const t = tags[i];
+    if (t.name === 'label' && !t.selfClosing) {
+      if (t.closing) labelDepth = Math.max(0, labelDepth - 1);
+      else labelDepth++;
+      continue;
+    }
+    if (t.closing) continue;
+    if (!['input', 'select', 'textarea'].includes(t.name)) continue;
+    const type = (t.attrs.type ?? 'text').toLowerCase();
+    if (t.name === 'input' && UNLABELLABLE_INPUT_TYPES.has(type)) continue;
+    const named = labelDepth > 0
+      || hasValue(t, 'aria-label') || isDynamicValue(t, 'aria-label')
+      || hasValue(t, 'aria-labelledby') || isDynamicValue(t, 'aria-labelledby')
+      || hasValue(t, 'title')
+      || (hasValue(t, 'id') && labelledIds.has(t.attrs.id));
+    if (named) continue;
+    add('form-label', 'err',
+      `<${t.name}> has no associated label, so its purpose is unannounced.`,
+      'Add a <label for="…">, aria-label, or aria-labelledby.',
+      selectorFor(t), t.dynamic ? 'approx' : structural);
+  }
+
+  // ── 3. button-name ──────────────────────────────────────────────────────
+  for (let i = 0; i < tags.length; i++) {
+    const t = tags[i];
+    if (t.closing) continue;
+    if (t.name === 'button') {
+      if (!hasName(accessibleName(source, tags, i))) {
+        add('button-name', 'err',
+          'Button has no accessible name, so it is announced only as "button".',
+          'Add visible text, aria-label, or aria-labelledby.',
+          selectorFor(t), structural);
+      }
+    } else if ((t.name === 'div' || t.name === 'span') && t.attrs.onclick !== undefined) {
+      const role = (t.attrs.role ?? '').toLowerCase();
+      const missing: string[] = [];
+      if (role !== 'button') missing.push('role="button"');
+      if (t.attrs.tabindex === undefined) missing.push('tabindex="0"');
+      if (t.attrs.onkeydown === undefined && t.attrs.onkeyup === undefined
+        && t.attrs.onkeypress === undefined) missing.push('a keyboard handler');
+      if (missing.length) {
+        add('button-name', 'err',
+          `Clickable <${t.name}> is not keyboard operable (missing ${missing.join(', ')}).`,
+          'Use a real <button>, or add role="button", tabindex="0" and a key handler.',
+          selectorFor(t), t.dynamic ? 'approx' : 'exact');
+      }
+    }
+  }
+
+  // ── 4. link-name ────────────────────────────────────────────────────────
+  for (let i = 0; i < tags.length; i++) {
+    const t = tags[i];
+    if (t.closing || t.name !== 'a') continue;
+    const nameRes = accessibleName(source, tags, i);
+    if (!hasName(nameRes)) {
+      add('link-name', 'err',
+        'Link has no accessible name.',
+        'Add link text, aria-label, or aria-labelledby.',
+        selectorFor(t), structural);
+      continue;
+    }
+    if (t.attrs.href === undefined && t.attrs.role === undefined) {
+      add('link-name', 'warn',
+        'Anchor has no href, so it is not reachable by keyboard.',
+        'Add an href, or use a <button> if it performs an action.',
+        selectorFor(t), t.dynamic ? 'approx' : structural);
+    }
+    const plain = nameRes.name.toLowerCase().replace(/[^a-z\s]/g, '').trim();
+    if (NON_DESCRIPTIVE_LINK_TEXT.includes(plain)) {
+      add('link-name', 'warn',
+        `Link text "${nameRes.name.trim()}" does not describe its destination out of context.`,
+        'Describe the target, e.g. "Read the accessibility guide".',
+        selectorFor(t), structural);
+    }
+  }
+
+  // ── 5. heading-order ────────────────────────────────────────────────────
+  const headings: Array<{ tag: Tag; level: number; idx: number }> = [];
+  for (let i = 0; i < tags.length; i++) {
+    const t = tags[i];
+    if (t.closing) continue;
+    const m = /^h([1-6])$/.exec(t.name);
+    if (m) headings.push({ tag: t, level: Number(m[1]), idx: i });
+    else if (roleOf(t) === 'heading' && hasValue(t, 'aria-level')) {
+      const lvl = Number(t.attrs['aria-level']);
+      if (lvl >= 1 && lvl <= 6) headings.push({ tag: t, level: lvl, idx: i });
+    }
+  }
+  const h1s = headings.filter(h => h.level === 1);
+  if (h1s.length > 1) {
+    for (const h of h1s.slice(1)) {
+      add('heading-order', 'warn',
+        `Document has ${h1s.length} <h1> elements; one top-level heading is expected.`,
+        'Demote the extra headings to <h2> or lower.',
+        selectorFor(h.tag), structural);
+    }
+  }
+  let prev = 0;
+  for (const h of headings) {
+    if (prev && h.level > prev + 1) {
+      add('heading-order', 'err',
+        `Heading level jumps from h${prev} to h${h.level}, breaking the outline.`,
+        `Use h${prev + 1} here, or restructure the section.`,
+        selectorFor(h.tag), structural);
+    }
+    if (!innerText(source, tags, h.idx) && !hasValue(h.tag, 'aria-label')) {
+      add('heading-order', 'err',
+        'Heading is empty, so it contributes nothing to the outline.',
+        'Add heading text, or remove the element.',
+        selectorFor(h.tag), structural);
+    }
+    prev = h.level;
+  }
+
+  // ── 7. html-lang ────────────────────────────────────────────────────────
+  const htmlTag = open.find(t => t.name === 'html');
+  if (htmlTag) {
+    const lang = htmlTag.attrs.lang;
+    if (lang === undefined || lang === '') {
+      add('html-lang', 'err',
+        'The <html> element has no lang attribute, so screen readers may use the wrong pronunciation.',
+        'Add a language code, e.g. lang="en".',
+        selectorFor(htmlTag));
+    } else if (lang !== '\x00dynamic' && !/^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$/i.test(lang)) {
+      add('html-lang', 'err',
+        `lang="${lang}" is not a valid BCP 47 language tag.`,
+        'Use a valid code such as "en", "en-GB" or "pt-BR".',
+        selectorFor(htmlTag));
+    }
+  }
+
+  // ── 8. title ────────────────────────────────────────────────────────────
+  const headTag = open.find(t => t.name === 'head');
+  if (htmlTag || headTag) {
+    const tIdx = tags.findIndex(t => !t.closing && t.name === 'title');
+    if (tIdx === -1) {
+      add('title', 'err',
+        'Document has no <title>, so it is unidentifiable in tabs and history.',
+        'Add a descriptive <title> in <head>.',
+        'head');
+    } else if (!innerText(source, tags, tIdx)) {
+      add('title', 'err',
+        'Document <title> is empty.',
+        'Give the page a unique, descriptive title.',
+        selectorFor(tags[tIdx]));
+    }
+  }
+
+  // ── 9. aria-valid ───────────────────────────────────────────────────────
+  for (const t of open) {
+    const rawRole = t.attrs.role;
+    let roleValid = true;
+    if (rawRole && rawRole !== '\x00dynamic') {
+      for (const r of rawRole.trim().split(/\s+/)) {
+        if (!VALID_ROLES.has(r.toLowerCase())) {
+          roleValid = false;
+          add('aria-valid', 'err',
+            `role="${r}" is not a valid ARIA role.`,
+            'Use a role from the ARIA specification, or remove the attribute.',
+            selectorFor(t), structural);
+        }
+      }
+    }
+    const effectiveRole = roleOf(t);
+    for (const attr of Object.keys(t.attrs)) {
+      if (!attr.startsWith('aria-')) continue;
+      if (!VALID_ARIA_ATTRS.has(attr)) {
+        add('aria-valid', 'err',
+          `${attr} is not a valid ARIA attribute.`,
+          'Check the spelling against the ARIA specification.',
+          selectorFor(t), structural);
+        continue;
+      }
+      // No permit-table warning when the role itself is already flagged -
+      // one finding per problem keeps the report readable.
+      if (!roleValid) continue;
+      const permitted = ROLE_PERMITTED_ATTRS[attr];
+      if (permitted && effectiveRole && !permitted.has(effectiveRole)) {
+        add('aria-valid', 'warn',
+          `${attr} is not supported on role="${effectiveRole}" and will be ignored.`,
+          `Move it to an element with a role that supports it (${[...permitted].slice(0, 3).join(', ')}…).`,
+          selectorFor(t), structural);
+      }
+    }
+  }
+
+  // ── 13. table-hdr ───────────────────────────────────────────────────────
+  for (let i = 0; i < tags.length; i++) {
+    const t = tags[i];
+    if (t.closing || t.name !== 'table') continue;
+    if (t.attrs.role === 'presentation' || t.attrs.role === 'none') continue;
+    // Scan only as far as this table's closing tag.
+    let depth = 1, endIdx = tags.length;
+    for (let j = i + 1; j < tags.length; j++) {
+      if (tags[j].name !== 'table') continue;
+      if (tags[j].closing) { if (--depth === 0) { endIdx = j; break; } }
+      else depth++;
+    }
+    const inner = tags.slice(i + 1, endIdx);
+    const ths = inner.filter(x => !x.closing && x.name === 'th');
+    if (ths.length === 0) {
+      add('table-hdr', 'err',
+        'Table has no <th> cells, so its data has no announced headers.',
+        'Mark header cells with <th> and add scope="col" or scope="row".',
+        selectorFor(t), structural);
+    } else if (!ths.some(x => hasValue(x, 'scope'))) {
+      add('table-hdr', 'warn',
+        'Table headers have no scope attribute, so header-to-cell association is ambiguous.',
+        'Add scope="col" or scope="row" to each <th>.',
+        selectorFor(t), structural);
+    }
+  }
+
+  // ── 14. captions ────────────────────────────────────────────────────────
+  for (let i = 0; i < tags.length; i++) {
+    const t = tags[i];
+    if (t.closing || t.name !== 'video') continue;
+    let endIdx = tags.length;
+    for (let j = i + 1; j < tags.length; j++) {
+      if (tags[j].name === 'video' && tags[j].closing) { endIdx = j; break; }
+    }
+    const hasCaptions = tags.slice(i + 1, endIdx).some(
+      x => x.name === 'track' && (x.attrs.kind === 'captions' || x.attrs.kind === 'subtitles'),
+    );
+    if (!hasCaptions) {
+      add('captions', 'err',
+        'Video has no captions track, so its audio is inaccessible to deaf users.',
+        'Add <track kind="captions" src="…" srclang="…" label="…">.',
+        selectorFor(t), structural);
+    }
+  }
+
+  // ── 15. frame-title ─────────────────────────────────────────────────────
+  for (const t of open) {
+    if (t.name !== 'iframe' && t.name !== 'frame') continue;
+    if (hasValue(t, 'title') || isDynamicValue(t, 'title')) continue;
+    if (t.attrs['aria-hidden'] === 'true') continue;
+    add('frame-title', 'err',
+      `<${t.name}> has no title, so it is announced only as "frame".`,
+      'Add title="…" describing the frame\'s content.',
+      selectorFor(t), t.dynamic ? 'approx' : 'exact');
+  }
+
+  // ── 16. dup-id ──────────────────────────────────────────────────────────
+  // In JSX a single source id may render many times (.map) or never
+  // (mutually exclusive branches) — false in both directions, hence approx.
+  const seenIds = new Map<string, Tag>();
+  for (const t of open) {
+    if (!hasValue(t, 'id')) continue;
+    const id = t.attrs.id;
+    const first = seenIds.get(id);
+    if (first) {
+      add('dup-id', 'err',
+        `id="${id}" is used more than once; label and ARIA references resolve to the first only.`,
+        'Make every id unique within the document.',
+        selectorFor(t), structural);
+    } else seenIds.set(id, t);
+  }
+
+  // ── 17. live-misuse ─────────────────────────────────────────────────────
+  const liveRegions = open.filter(
+    t => hasValue(t, 'aria-live') || ['status', 'alert', 'log'].includes(t.attrs.role ?? ''),
+  );
+  for (const t of liveRegions) {
+    if (isHiddenFromAT(t)) {
+      add('live-misuse', 'err',
+        'Live region is hidden from assistive technology, so its updates are never announced.',
+        'Remove aria-hidden/hidden, or use a visually-hidden class instead.',
+        selectorFor(t), structural);
+    }
+    const live = t.attrs['aria-live'];
+    if (live === 'assertive' && (t.attrs.role ?? '') !== 'alert') {
+      add('live-misuse', 'warn',
+        'aria-live="assertive" interrupts the user immediately; it is rarely warranted.',
+        'Use aria-live="polite" unless the message is genuinely urgent.',
+        selectorFor(t), structural);
+    }
+    if (live && live !== '\x00dynamic' && !['polite', 'assertive', 'off'].includes(live)) {
+      add('live-misuse', 'err',
+        `aria-live="${live}" is not a valid value.`,
+        'Use "polite", "assertive" or "off".',
+        selectorFor(t), structural);
+    }
+  }
+  const assertiveCount = liveRegions.filter(
+    t => t.attrs['aria-live'] === 'assertive' || t.attrs.role === 'alert',
+  ).length;
+  if (assertiveCount > 1) {
+    add('live-misuse', 'warn',
+      `${assertiveCount} assertive live regions compete to interrupt the user.`,
+      'Keep a single assertive region, or demote the rest to polite.',
+      'document', structural);
+  }
+
+  // ── 18. tabindex-pos ────────────────────────────────────────────────────
+  for (const t of open) {
+    const ti = t.attrs.tabindex;
+    if (ti === undefined || ti === '\x00dynamic') continue;
+    const n = Number(ti);
+    if (Number.isNaN(n)) continue;
+    if (n > 0) {
+      add('tabindex-pos', 'err',
+        `tabindex="${ti}" forces this element ahead of the natural tab order.`,
+        'Use tabindex="0" and place the element where it belongs in the DOM.',
+        selectorFor(t), structural);
+    } else if (n === 0) {
+      const role = roleOf(t);
+      const interactive = INTERACTIVE_ELEMENTS.has(t.name)
+        || (role !== undefined && INTERACTIVE_ROLES.has(role));
+      if (!interactive) {
+        add('tabindex-pos', 'warn',
+          `tabindex="0" on a non-interactive <${t.name}> adds a tab stop that does nothing.`,
+          'Remove the tabindex, or give the element an interactive role and behaviour.',
+          selectorFor(t), structural);
+      }
+    }
+  }
+
+  // ── 19. dialog-name ─────────────────────────────────────────────────────
+  for (let i = 0; i < tags.length; i++) {
+    const t = tags[i];
+    if (t.closing) continue;
+    const role = roleOf(t);
+    if (t.name !== 'dialog' && role !== 'dialog' && role !== 'alertdialog') continue;
+    const named = hasValue(t, 'aria-label') || isDynamicValue(t, 'aria-label')
+      || hasValue(t, 'aria-labelledby') || isDynamicValue(t, 'aria-labelledby')
+      || hasValue(t, 'title');
+    if (!named) {
+      add('dialog-name', 'err',
+        'Dialog has no accessible name, so its purpose is unannounced on open.',
+        'Add aria-label, or aria-labelledby pointing at the dialog heading.',
+        selectorFor(t), structural);
+    }
+  }
+
+  return issues;
+}

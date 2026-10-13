@@ -9,10 +9,12 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
+    "preview:worker": "astro build && wrangler dev",
     "deploy": "astro build && wrangler deploy"
   },
   "devDependencies": {
     "@types/upng-js": "^2.1.5",
+    "jsdom": "^30.0.1",
     "puppeteer": "^25.11.0",
     "vitest": "~4.1.11",
     "wrangler": "^4.149.0"

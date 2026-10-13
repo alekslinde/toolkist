@@ -73,6 +73,7 @@ Source of truth is `src/data/tools.ts` — keep this table in sync with it.
 | `pdf-convert` | PDF Converter (PDF↔image, extract text) |
 | `pdf-compress` | PDF Compressor |
 | `file-diff` | File Diff (text/code/PDF) |
+| `metadata-cleaner` | Metadata Cleaner |
 
 **Typography & Color**
 
@@ -90,6 +91,7 @@ Source of truth is `src/data/tools.ts` — keep this table in sync with it.
 
 | Slug | Tool |
 |---|---|
+| `accessibility-checker` | Accessibility Checker (20 WCAG rules, static + DOM engines) |
 | `code-formatter` | Code Formatter |
 | `code-minifier` | Code Minifier |
 | `scss-compiler` | SCSS Compiler |
@@ -120,7 +122,10 @@ tests; the pages are thin views over it.
 ```bash
 npm run dev        # astro dev server
 npm run build      # astro build → dist/
-npm run preview    # serve dist/ locally
+npm run preview    # serve dist/ locally (static only — API routes 404)
+npm run preview:worker  # astro build + wrangler dev — serves dist/ *through* the
+                        # Worker, so /pv, /feedback and /u behave as in production.
+                        # Use this for browser console checks.
 npm test           # vitest run (run before committing)
 npm run bench:node # benchmarks (vitest bench)
 npm run deploy     # astro build + wrangler deploy to Cloudflare
