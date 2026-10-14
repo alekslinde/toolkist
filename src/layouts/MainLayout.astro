@@ -12,8 +12,10 @@ import {
 } from '@/lib/schema';
 import changelog from '../../changelog.json';
 
-// The header version is derived from the newest changelog entry so the two
-// can never drift out of sync. Keep changelog.json ordered newest-first.
+// The header version badge is derived from the newest changelog entry so the
+// two can never drift out of sync, and links to the What's new section on
+// the home page where the full changelog lives. Keep changelog.json ordered
+// newest-first.
 const currentVersion = changelog[0].version;
 
 interface Props {
@@ -184,11 +186,11 @@ const schemas = tool
         >
           ☕ Buy me a coffee
         </a>
-        <button
-          id="version-btn"
-          class="hidden cursor-pointer bg-transparent text-xs text-on-dark-dim transition-colors hover:text-on-dark lg:block"
-          aria-label={`View changelog (v${currentVersion})`}
-        >v{currentVersion}</button>
+        <a
+          href="/#whats-new"
+          class="hidden cursor-pointer bg-transparent text-xs text-on-dark-dim no-underline transition-colors hover:text-on-dark lg:block"
+          aria-label={`What's new in v${currentVersion}`}
+        >v{currentVersion}</a>
 
         <!-- Mobile hamburger -->
         <button
@@ -258,37 +260,11 @@ const schemas = tool
           </svg>
         </a>
       </div>
-      <button
-        id="version-btn-mob"
-        class="cursor-pointer bg-transparent text-xs text-on-dark-dim transition-colors hover:text-on-dark"
-        aria-label={`View changelog (v${currentVersion})`}
-      >v{currentVersion}</button>
-    </div>
-  </div>
-
-  <!-- Changelog modal -->
-  <div id="cl-modal" class="fixed inset-0 z-[9000] hidden items-stretch justify-end" role="dialog" aria-modal="true" aria-label="Changelog">
-    <div id="cl-backdrop" class="absolute inset-0 bg-slate-900/50"></div>
-    <div class="relative z-10 flex w-[380px] max-w-[90vw] flex-col bg-surface shadow-[-4px_0_32px_rgba(0,0,0,0.12)]">
-      <div class="flex shrink-0 items-center justify-between border-b border-slate-200 px-6 py-5">
-        <span class="text-sm font-semibold text-slate-900">Changelog</span>
-        <button id="cl-close" class="p-1 text-slate-400 transition-colors hover:text-slate-900" aria-label="Close changelog">✕</button>
-      </div>
-      <div class="flex flex-1 flex-col gap-7 overflow-y-auto px-6 py-5">
-        {changelog.map((entry) => (
-          <div class="flex flex-col gap-2">
-            <div class="flex items-baseline gap-3">
-              <span class="font-mono text-[0.85rem] font-semibold text-indigo-500">v{entry.version}</span>
-              <span class="font-mono text-[0.62rem] text-slate-400">{entry.date}</span>
-            </div>
-            <ul class="m-0 flex flex-col gap-1 pl-[1.1rem]">
-              {entry.changes.map((change) => (
-                <li class="text-[0.82rem] leading-relaxed text-slate-800">{change}</li>
-              ))}
-            </ul>
-          </div>
-        ))}
-      </div>
+        <a
+          href="/#whats-new"
+          class="cursor-pointer bg-transparent text-xs text-on-dark-dim no-underline transition-colors hover:text-on-dark"
+          aria-label={`What's new in v${currentVersion}`}
+        >v{currentVersion}</a>
     </div>
   </div>
 
@@ -385,28 +361,6 @@ const schemas = tool
             smoothScrollTo(target);
           });
         });
-
-        // Changelog
-        var modal    = document.getElementById('cl-modal');
-        var backdrop = document.getElementById('cl-backdrop');
-        var closeBtn = document.getElementById('cl-close');
-        var vBtn     = document.getElementById('version-btn');
-        var vBtnMob  = document.getElementById('version-btn-mob');
-
-        function openCl() {
-          closeMenu();
-          modal && (modal.classList.remove('hidden'), modal.classList.add('flex'));
-          document.body.classList.add('overflow-hidden');
-        }
-        function closeCl() {
-          modal && (modal.classList.add('hidden'), modal.classList.remove('flex'));
-          document.body.classList.remove('overflow-hidden');
-        }
-
-        vBtn     && vBtn.addEventListener('click', openCl);
-        vBtnMob  && vBtnMob.addEventListener('click', openCl);
-        backdrop && backdrop.addEventListener('click', closeCl);
-        closeBtn && closeBtn.addEventListener('click', closeCl);
       }
 
       document.addEventListener('astro:page-load', setup);
@@ -419,22 +373,15 @@ const schemas = tool
         });
       }
 
-      // Escape: close mobile menu or changelog (registered once, queries fresh each time).
+      // Escape: close the mobile menu (registered once, queries fresh each time).
       document.addEventListener('keydown', function (e) {
         if (e.key !== 'Escape') return;
-        var modal = document.getElementById('cl-modal');
-        if (modal && !modal.classList.contains('hidden')) {
-          modal.classList.add('hidden');
-          modal.classList.remove('flex');
-          document.body.classList.remove('overflow-hidden');
-        } else {
-          var menu    = document.getElementById('mob-menu');
-          var overlay = document.getElementById('mob-overlay');
-          var btn     = document.getElementById('mob-open');
-          menu    && (menu.classList.add('hidden'), menu.classList.remove('flex'));
-          overlay && (overlay.classList.add('opacity-0', 'pointer-events-none'));
-          btn     && btn.setAttribute('aria-expanded', 'false');
-        }
+        var menu    = document.getElementById('mob-menu');
+        var overlay = document.getElementById('mob-overlay');
+        var btn     = document.getElementById('mob-open');
+        menu    && (menu.classList.add('hidden'), menu.classList.remove('flex'));
+        overlay && (overlay.classList.add('opacity-0', 'pointer-events-none'));
+        btn     && btn.setAttribute('aria-expanded', 'false');
       });
     }());
   </script>

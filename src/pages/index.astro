@@ -2,6 +2,7 @@
 import MainLayout from '@/layouts/MainLayout.astro';
 import ToolCard from '@/components/ToolCard.astro';
 import { tools } from '@/data/tools';
+import changelog from '../../changelog.json';
 
 const images     = tools.filter((t) => t.category === 'images');
 const typography = tools.filter((t) => t.category === 'typography');
@@ -96,28 +97,23 @@ const toolCount = tools.length;
     ))}
   </div>
 
-  <!-- Use cases strip -->
-  <section class="border-t border-slate-200 bg-surface" aria-label="Example use cases">
+  <!-- What's new strip -->
+  <section id="whats-new" class="border-t border-slate-200 bg-surface" aria-label="What's new">
     <div class="page-shell">
-      <p class="mb-6 font-mono text-[0.68rem] uppercase tracking-[0.2em] text-purple-500">// Real-world friction</p>
-      <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {[
-          { quote: 'You got handed a TTF and the project needs WOFF2. Two minutes, done.', tool: 'Font Tools', href: '/tools/font-converter' },
-          { quote: 'Client wants the hero image in WebP. No Photoshop, no plugins, just drag and drop.', tool: 'Image Tools', href: '/tools/image-compress' },
-          { quote: 'Does this background/text combo pass WCAG AA? Check it before the PR review.', tool: 'Color & WCAG', href: '/tools/wcag-contrast' },
-          { quote: 'Marketing sent a 14 MB PDF. Legal needs it under 5 MB by 3 pm.', tool: 'PDF Compress', href: '/tools/pdf-compress' },
-          { quote: 'New brand guidelines dropped. What fonts and colours are they actually using?', tool: 'Brand Assets', href: '/tools/brand-assets' },
-          { quote: 'Inherited div-soup HTML. Need semantic markup before the accessibility audit.', tool: 'Code Tools', href: '/tools/semantic-html' },
-        ].map((uc) => (
-          <a
-            href={uc.href}
-            class="group flex flex-col justify-between rounded-md border border-slate-200 bg-slate-50 p-5 no-underline transition-colors hover:border-purple-200 hover:bg-purple-50"
-          >
-            <p class="mb-4 text-sm italic leading-relaxed text-slate-600">"{uc.quote}"</p>
-            <span class="text-xs font-semibold text-purple-500 transition-colors group-hover:text-purple-600">
-              {uc.tool} →
-            </span>
-          </a>
+      <p class="mb-6 font-mono text-[0.68rem] uppercase tracking-[0.2em] text-purple-500">// What's new</p>
+      <div class="flex max-w-3xl flex-col gap-8">
+        {changelog.map((entry) => (
+          <div class="flex flex-col gap-2">
+            <div class="flex items-baseline gap-3">
+              <span class="font-mono text-[0.85rem] font-semibold text-indigo-500">v{entry.version}</span>
+              <span class="font-mono text-[0.62rem] text-slate-400">{entry.date}</span>
+            </div>
+            <ul class="m-0 flex flex-col gap-1 pl-[1.1rem]">
+              {entry.changes.map((change) => (
+                <li class="text-[0.82rem] leading-relaxed text-slate-800">{change}</li>
+              ))}
+            </ul>
+          </div>
         ))}
       </div>
     </div>
