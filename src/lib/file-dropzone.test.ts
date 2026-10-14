@@ -1,5 +1,5 @@
-import { describe, it, expect, afterEach } from 'vitest';
-import { extBadge, truncateMiddle, wireDropZone, wireMultiDropZone, ensurePastedNames } from './file-dropzone.js';
+import { describe, it, expect, afterEach, vi } from 'vitest';
+import { extBadge, truncateMiddle, wireDropZone, wireMultiDropZone, ensurePastedNames, pasteLinkFromText, dataUrlToFile } from './file-dropzone.js';
 
 describe('extBadge', () => {
   it('labels the extension in uppercase', () => {
@@ -58,19 +58,30 @@ function dispatchPaste(
   clipboard: {
     files?: File[];
     items?: { kind: string; getAsFile: () => File | null }[];
+    text?: string;
   } | null,
 ): Event {
   const event = new Event('paste', { bubbles: true, cancelable: true });
   if (clipboard) {
+    const text = clipboard.text ?? '';
     Object.defineProperty(event, 'clipboardData', {
       value: {
         files: clipboard.files ?? [],
         items: clipboard.items ?? [],
+        getData: (type: string) => (type === 'text/plain' || type === 'text/uri-list' ? text : ''),
       },
     });
   }
   target.dispatchEvent(event);
   return event;
+}
+
+async function waitFor(cond: () => boolean, ms = 2000): Promise<void> {
+  const start = Date.now();
+  while (!cond()) {
+    if (Date.now() - start > ms) throw new Error('timed out waiting for condition');
+    await new Promise((r) => setTimeout(r, 10));
+  }
 }
 
 function mountMulti(id: string): { root: HTMLDivElement; input: HTMLInputElement } {
@@ -305,6 +316,108 @@ describe('paste-anywhere fallback', () => {
 
     expect(pasted.defaultPrevented).toBe(true);
     expect(got).toEqual(['from-slider.png']);
+  });
+});
+
+describe('pasteLinkFromText', () => {
+  it('accepts a single http(s) URL', () => {
+    expect(pasteLinkFromText('https://example.com/photo.png')).toBe('https://example.com/photo.png');
+    expect(pasteLinkFromText('  http://example.com/a.jpg  ')).toBe('http://example.com/a.jpg');
+  });
+
+  it('rejects non-link text, multi-token text and dangerous schemes', () => {
+    expect(pasteLinkFromText('')).toBeNull();
+    expect(pasteLinkFromText('just some words')).toBeNull();
+    expect(pasteLinkFromText('https://example.com/a.png and more')).toBeNull();
+    expect(pasteLinkFromText('javascript:alert(1)')).toBeNull();
+    expect(pasteLinkFromText('file:///etc/passwd')).toBeNull();
+  });
+
+  it('accepts data: URLs', () => {
+    const d = 'data:image/png;base64,iVBORw0KGgo=';
+    expect(pasteLinkFromText(d)).toBe(d);
+  });
+});
+
+describe('dataUrlToFile', () => {
+  it('decodes a base64 image data URL with a png name', () => {
+    const d = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+    const f = dataUrlToFile(d);
+    expect(f).not.toBeNull();
+    expect(f!.type).toBe('image/png');
+    expect(f!.name).toMatch(/^pasted-data-\d+\.png$/);
+    expect(f!.size).toBeGreaterThan(0);
+  });
+
+  it('returns null for malformed input', () => {
+    expect(dataUrlToFile('not-a-data-url')).toBeNull();
+    expect(dataUrlToFile('data:image/png;base64,!!!not-base64!!!')).toBeNull();
+  });
+});
+
+describe('pasted-link fetching', () => {
+  afterEach(() => {
+    document.body.replaceChildren();
+    vi.unstubAllGlobals();
+  });
+
+  it('fetches a pasted http(s) link into the zone, named from the URL', async () => {
+    const got: File[] = [];
+    mountMulti('zone-link');
+    wireMultiDropZone('zone-link', { onFiles: (files) => got.push(...files) });
+    vi.stubGlobal('fetch', async () =>
+      ({ ok: true, blob: async () => new Blob(['imagedata'], { type: 'image/png' }) }) as Response,
+    );
+
+    dispatchPaste(document.body, { text: 'https://example.com/photo.png' });
+
+    await waitFor(() => got.length > 0);
+    expect(got[0].name).toBe('photo.png');
+    expect(got[0].type).toBe('image/png');
+  });
+
+  it('decodes a pasted data: URL without any fetch', async () => {
+    const got: File[] = [];
+    mountMulti('zone-data');
+    wireMultiDropZone('zone-data', { onFiles: (files) => got.push(...files) });
+    const fetchSpy = vi.fn(async () => ({ ok: false, blob: async () => new Blob([]) }) as Response);
+    vi.stubGlobal('fetch', fetchSpy);
+    const d = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+
+    dispatchPaste(document.body, { text: d });
+
+    await waitFor(() => got.length > 0);
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(got[0].name).toMatch(/^pasted-data-\d+\.png$/);
+  });
+
+  it('does not hijack link text pasted into a text field', async () => {
+    const got: File[] = [];
+    mountMulti('zone-link-text');
+    wireMultiDropZone('zone-link-text', { onFiles: (files) => got.push(...files) });
+    const fetchSpy = vi.fn(async () => ({ ok: true, blob: async () => new Blob(['x']) }) as Response);
+    vi.stubGlobal('fetch', fetchSpy);
+    const ta = document.createElement('textarea');
+    document.body.append(ta);
+    ta.focus();
+
+    const pasted = dispatchPaste(ta, { text: 'https://example.com/photo.png' });
+
+    expect(pasted.defaultPrevented).toBe(false);
+    await new Promise((r) => setTimeout(r, 50));
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(got).toEqual([]);
+  });
+
+  it('shows an inline notice when the link cannot be fetched', async () => {
+    mountMulti('zone-link-fail');
+    wireMultiDropZone('zone-link-fail', { onFiles: () => {} });
+    vi.stubGlobal('fetch', async () => { throw new TypeError('blocked'); });
+
+    dispatchPaste(document.body, { text: 'https://example.com/photo.png' });
+
+    await waitFor(() => document.querySelector('[data-dz-notice]') !== null);
+    expect(document.querySelector('[data-dz-notice]')!.textContent).toContain('Couldn’t fetch');
   });
 });
 

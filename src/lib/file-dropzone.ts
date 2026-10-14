@@ -9,6 +9,8 @@ import { extOf, fmtBytes } from './utils.js';
  *  2. `wireDropZone(id, opts)` — DOM wiring that turns a `<FileDropZone id=…>`
  *     instance into a working single-file picker. Framework-agnostic: works
  *     for both Alpine and vanilla-JS tools by driving the markup imperatively.
+ *     Includes paste-anywhere file upload plus pasted-link fetching
+ *     (Copy Link Address → fetch → File), so every tool gets both for free.
  */
 
 export interface ExtBadge {
@@ -240,6 +242,143 @@ function pruneZones(): void {
   }
 }
 
+/** Shown when a pasted link cannot be fetched at all. */
+const LINK_FETCH_FAILED =
+  'Couldn’t fetch that link — the site may block cross-site requests. Download the file and drop it instead.';
+
+const linkNotices = new WeakMap<HTMLElement, HTMLElement>();
+
+/** Transient inline error under a zone. Best-effort — never throws. */
+function showZoneNotice(root: HTMLElement, msg: string): void {
+  try {
+    linkNotices.get(root)?.remove();
+    const note = root.ownerDocument.createElement('p');
+    note.setAttribute('data-dz-notice', '');
+    note.setAttribute('role', 'status');
+    note.className = 'mt-2 text-center text-xs text-rose-500';
+    note.textContent = msg;
+    root.insertAdjacentElement('afterend', note);
+    linkNotices.set(root, note);
+    root.ownerDocument.defaultView?.setTimeout(() => {
+      if (note.isConnected) note.remove();
+    }, 6000);
+  } catch { /* notice is best-effort */ }
+}
+
+/**
+ * Accept a pasted link (Copy Link Address / Copy Image Address) when the
+ * clipboard holds no files. Only a single http(s) URL or a data: URL
+ * qualifies — anything else belongs to the focused field / default handling.
+ */
+export function pasteLinkFromText(text: string): string | null {
+  const t = (text || '').trim();
+  if (!t || /\s/.test(t)) return null;
+  if (/^https?:\/\//i.test(t)) {
+    try {
+      const u = new URL(t);
+      if (u.protocol === 'http:' || u.protocol === 'https:') return u.href;
+    } catch { /* invalid URL */ }
+    return null;
+  }
+  if (t.startsWith('data:') && t.includes(',') && t.length < 8_000_000) return t;
+  return null;
+}
+
+/** Read link text from a paste event. Never throws. */
+function textFromPaste(e: ClipboardEvent): string {
+  const dt = e.clipboardData;
+  if (!dt) return '';
+  try {
+    const get = (type: string): string => {
+      try { return dt.getData(type); } catch { return ''; }
+    };
+    const uriList = get('text/uri-list');
+    if (uriList) {
+      const first = uriList
+        .split(/\r?\n/)
+        .map((s) => s.trim())
+        .filter((s) => s && !s.startsWith('#'))[0];
+      if (first) return first;
+    }
+    return get('text/plain');
+  } catch {
+    return '';
+  }
+}
+
+/** Decode a data: URL into a File. Null when malformed. */
+export function dataUrlToFile(url: string): File | null {
+  const m = /^data:([^;,]*)?(;base64)?,(.*)$/s.exec(url);
+  if (!m) return null;
+  const mime = (m[1] || 'application/octet-stream').toLowerCase();
+  try {
+    let bytes: Uint8Array;
+    if (m[2]) {
+      const bin = atob(m[3].replace(/\s/g, ''));
+      bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    } else {
+      bytes = new TextEncoder().encode(decodeURIComponent(m[3]));
+    }
+    const ext = extFromMime(mime) || 'bin';
+    return new File([bytes], `pasted-data-${Date.now()}.${ext}`, { type: mime });
+  } catch {
+    return null;
+  }
+}
+
+/** Derive a filename from a URL path, appending a MIME-based extension when missing. */
+function fileNameFromUrl(url: string, mime: string): string {
+  const ext = extFromMime(mime);
+  try {
+    const u = new URL(url);
+    const last = u.pathname.split('/').filter(Boolean).pop() ?? '';
+    let clean = '';
+    try { clean = decodeURIComponent(last); } catch { clean = last; }
+    clean = clean.replace(/[^\w.\-() ]/g, '_').trim();
+    if (clean) {
+      const dot = clean.lastIndexOf('.');
+      if (dot > 0 && dot < clean.length - 1) return clean;
+      return ext ? `${clean}.${ext}` : clean;
+    }
+  } catch { /* fall through to generated name */ }
+  return `pasted-link-${Date.now()}.${ext || 'bin'}`;
+}
+
+// Raw-byte CORS proxies for binary fetching (same services brand-extract
+// uses; the JSON-wrapping /get endpoint cannot carry binary).
+const RAW_PROXIES = [
+  (url: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+  (url: string) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
+];
+
+/**
+ * Turn a pasted link into Files: data: URLs decode locally, http(s) tries a
+ * direct fetch first then the raw CORS proxies. Empty array on total failure.
+ */
+export async function fetchLinkToFiles(url: string): Promise<File[]> {
+  if (url.startsWith('data:')) {
+    const f = dataUrlToFile(url);
+    return f ? [f] : [];
+  }
+  let urlExt = '';
+  try { urlExt = (new URL(url).pathname.split('.').pop() ?? '').toLowerCase(); } catch { /* ignore */ }
+  const targets = [url, ...RAW_PROXIES.map((p) => p(url))];
+  for (const target of targets) {
+    try {
+      const res = await fetch(target, { signal: AbortSignal.timeout(15000) });
+      if (!res.ok) continue;
+      const blob = await res.blob();
+      if (!blob || blob.size === 0) continue;
+      // A proxy error page (HTML) for an image-looking URL is a failure, not a file.
+      if (target !== url && IMAGE_EXTS.has(urlExt) && blob.type && !blob.type.startsWith('image/')) continue;
+      const name = fileNameFromUrl(url, blob.type);
+      return [new File([blob], name, { type: blob.type })];
+    } catch { /* try next */ }
+  }
+  return [];
+}
+
 /**
  * Document-level paste fallback so Ctrl+V works anywhere on the page —
  * the user does not have to focus the (sr-only) file input first.
@@ -257,20 +396,39 @@ function ensureDocPaste(): void {
     pruneZones();
     const connected = zones.filter((z) => z.root.isConnected);
     if (!connected.length) return;
+    const pick = (): ZoneEntry | null => {
+      // Hidden zones (e.g. inactive single/batch tab) have no rects. In jsdom
+      // everything has no rects, so fall back to all connected zones there.
+      const withRects = connected.filter(
+        (z) => z.root.getClientRects().length > 0 || z.root.offsetWidth + z.root.offsetHeight > 0,
+      );
+      const pool = withRects.length ? withRects : connected;
+      let best = pool[0];
+      for (const z of pool) if (z.lastActive > best.lastActive) best = z;
+      return best ?? null;
+    };
     const raw = filesFromPaste(e as ClipboardEvent);
-    if (!raw.length) return;
-    const files = ensurePastedNames(raw);
-    if (!files.length) return;
-    // Hidden zones (e.g. inactive single/batch tab) have no rects. In jsdom
-    // everything has no rects, so fall back to all connected zones there.
-    const withRects = connected.filter(
-      (z) => z.root.getClientRects().length > 0 || z.root.offsetWidth + z.root.offsetHeight > 0,
-    );
-    const pool = withRects.length ? withRects : connected;
-    let best = pool[0];
-    for (const z of pool) if (z.lastActive > best.lastActive) best = z;
+    if (raw.length) {
+      const files = ensurePastedNames(raw);
+      if (!files.length) return;
+      const best = pick();
+      if (!best) return;
+      e.preventDefault();
+      best.onFiles(files);
+      return;
+    }
+    const link = pasteLinkFromText(textFromPaste(e as ClipboardEvent));
+    if (!link) return;
+    const best = pick();
+    if (!best) return;
     e.preventDefault();
-    best.onFiles(files);
+    best.lastActive = ++activeSeq;
+    const target = best;
+    void fetchLinkToFiles(link).then((fetched) => {
+      if (!target.root.isConnected) return;
+      if (fetched.length) target.onFiles(fetched);
+      else showZoneNotice(target.root, LINK_FETCH_FAILED);
+    });
   });
 }
 
@@ -317,9 +475,19 @@ function bindZone(root: HTMLElement, onFiles: (files: File[]) => void): HTMLInpu
   });
   root.addEventListener('paste', (e) => {
     const files = ensurePastedNames(filesFromPaste(e));
-    if (!files.length) return;
+    if (files.length) {
+      e.preventDefault();
+      onFiles(files);
+      return;
+    }
+    const link = pasteLinkFromText(textFromPaste(e));
+    if (!link) return;
     e.preventDefault();
-    onFiles(files);
+    void fetchLinkToFiles(link).then((fetched) => {
+      if (!root.isConnected) return;
+      if (fetched.length) onFiles(fetched);
+      else showZoneNotice(root, LINK_FETCH_FAILED);
+    });
   });
 
   return input;
