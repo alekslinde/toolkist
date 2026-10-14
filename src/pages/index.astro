@@ -2,7 +2,7 @@
 import MainLayout from '@/layouts/MainLayout.astro';
 import ToolCard from '@/components/ToolCard.astro';
 import { tools } from '@/data/tools';
-import changelog from '../../changelog.json';
+import changelog from '../data/changelog.json';
 
 const images     = tools.filter((t) => t.category === 'images');
 const typography = tools.filter((t) => t.category === 'typography');

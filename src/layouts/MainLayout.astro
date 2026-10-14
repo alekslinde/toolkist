@@ -10,10 +10,10 @@ import {
   CATEGORY_LABELS,
   type FaqItem,
 } from '@/lib/schema';
-import changelog from '../../changelog.json';
+import changelog from '../data/changelog.json';
 
 // The footer version stamp is derived from the newest changelog entry so the
-// two can never drift out of sync. Keep changelog.json ordered newest-first.
+// two can never drift out of sync. Keep src/data/changelog.json ordered newest-first.
 const currentVersion = changelog[0].version;
 
 interface Props {
