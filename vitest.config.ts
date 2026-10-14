@@ -22,7 +22,7 @@ export default defineConfig({
           name: 'node',
           environment: 'node',
           include: ['src/**/*.test.ts'],
-          exclude: ['src/lib/a11y/**'],
+          exclude: ['src/lib/a11y/**', 'src/lib/file-dropzone.test.ts'],
         },
       },
       {
@@ -32,7 +32,9 @@ export default defineConfig({
         test: {
           name: 'jsdom',
           environment: 'jsdom',
-          include: ['src/lib/a11y/**/*.test.ts'],
+          // file-dropzone.test.ts wires real DOM (paste / focus). The rest of
+          // src stays on node.
+          include: ['src/lib/a11y/**/*.test.ts', 'src/lib/file-dropzone.test.ts'],
         },
       },
     ],

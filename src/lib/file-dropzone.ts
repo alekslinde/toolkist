@@ -113,18 +113,20 @@ function filesFromPaste(e: ClipboardEvent): File[] {
 /**
  * Shared drag/click/paste wiring for a `<FileDropZone>` root. Toggles the
  * `data-dz-over` highlight and forwards clicks to the labelled input.
- * Paste works when the zone has focus (root is focusable). No document-level
- * listeners, so multiple zones neither leak nor race.
+ * Paste is listened for on the root and arrives when the file input — the
+ * real keyboard control — is focused, because the event bubbles. The zone
+ * root is not given a tabindex: a plain div with tabindex="0" is a
+ * non-interactive tab stop. No document-level listeners, so multiple zones
+ * neither leak nor race.
  */
 function bindZone(root: HTMLElement, onFiles: (files: File[]) => void): HTMLInputElement {
   const input = root.querySelector<HTMLInputElement>('[data-dz-input]')!;
 
-  // Focusable so paste events target this zone after click / keyboard focus.
-  if (!root.hasAttribute('tabindex')) root.tabIndex = 0;
-
   root.addEventListener('click', () => input.click());
+  // Pointer users land on the input, not the zone, so a following paste
+  // bubbles here without an extra keyboard stop.
   root.addEventListener('pointerdown', () => {
-    root.focus({ preventScroll: true });
+    input.focus({ preventScroll: true });
   });
   root.addEventListener('dragover', (e) => {
     e.preventDefault();
