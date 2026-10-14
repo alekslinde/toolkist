@@ -361,6 +361,16 @@ export async function fetchLinkToFiles(url: string): Promise<File[]> {
     const f = dataUrlToFile(url);
     return f ? [f] : [];
   }
+  // Never forward embedded credentials (user:pass@host) — the proxy
+  // fallback would leak them to a third party.
+  try {
+    const u = new URL(url);
+    u.username = '';
+    u.password = '';
+    url = u.href;
+  } catch {
+    return [];
+  }
   let urlExt = '';
   try { urlExt = (new URL(url).pathname.split('.').pop() ?? '').toLowerCase(); } catch { /* ignore */ }
   const targets = [url, ...RAW_PROXIES.map((p) => p(url))];
@@ -370,8 +380,15 @@ export async function fetchLinkToFiles(url: string): Promise<File[]> {
       if (!res.ok) continue;
       const blob = await res.blob();
       if (!blob || blob.size === 0) continue;
-      // A proxy error page (HTML) for an image-looking URL is a failure, not a file.
-      if (target !== url && IMAGE_EXTS.has(urlExt) && blob.type && !blob.type.startsWith('image/')) continue;
+      // A proxy error page for a file-looking URL is a failure, not a file.
+      // Generic bytes are accepted (the URL name carries the type); anything
+      // else claiming to be an image/pdf must actually look like one.
+      const fileLike = IMAGE_EXTS.has(urlExt) || urlExt === 'pdf';
+      const expected = urlExt === 'pdf' ? 'application/pdf' : 'image/';
+      if (
+        target !== url && fileLike && blob.type &&
+        blob.type !== 'application/octet-stream' && !blob.type.startsWith(expected)
+      ) continue;
       const name = fileNameFromUrl(url, blob.type);
       return [new File([blob], name, { type: blob.type })];
     } catch { /* try next */ }

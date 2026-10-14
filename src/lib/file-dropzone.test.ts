@@ -419,5 +419,44 @@ describe('pasted-link fetching', () => {
     await waitFor(() => document.querySelector('[data-dz-notice]') !== null);
     expect(document.querySelector('[data-dz-notice]')!.textContent).toContain('Couldn’t fetch');
   });
+
+  it('strips credentials from pasted URLs before fetching', async () => {
+    const got: File[] = [];
+    const seen: string[] = [];
+    mountMulti('zone-creds');
+    wireMultiDropZone('zone-creds', { onFiles: (files) => got.push(...files) });
+    vi.stubGlobal('fetch', async (input: unknown) => {
+      seen.push(String(input));
+      return { ok: true, blob: async () => new Blob(['imagedata'], { type: 'image/png' }) } as Response;
+    });
+
+    dispatchPaste(document.body, { text: 'https://user:secret@example.com/photo.png' });
+
+    await waitFor(() => got.length > 0);
+    expect(seen[0]).toBe('https://example.com/photo.png');
+    expect(seen.join('\n')).not.toContain('secret');
+    expect(got[0].name).toBe('photo.png');
+  });
+
+  it('skips proxy HTML error pages for pdf links', async () => {
+    const got: File[] = [];
+    const seen: string[] = [];
+    mountMulti('zone-pdf-guard');
+    wireMultiDropZone('zone-pdf-guard', { onFiles: (files) => got.push(...files) });
+    vi.stubGlobal('fetch', async (input: unknown) => {
+      const u = String(input);
+      seen.push(u);
+      if (u.startsWith('https://api.')) {
+        return { ok: true, blob: async () => new Blob(['<html>'], { type: 'text/html' }) } as Response;
+      }
+      throw new TypeError('blocked');
+    });
+
+    dispatchPaste(document.body, { text: 'https://example.com/doc.pdf' });
+
+    await waitFor(() => document.querySelector('[data-dz-notice]') !== null);
+    expect(got).toEqual([]);
+    expect(seen.length).toBe(3);
+  });
 });
 
