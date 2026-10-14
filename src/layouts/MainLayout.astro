@@ -12,10 +12,8 @@ import {
 } from '@/lib/schema';
 import changelog from '../../changelog.json';
 
-// The header version badge is derived from the newest changelog entry so the
-// two can never drift out of sync, and links to the What's new section on
-// the home page where the full changelog lives. Keep changelog.json ordered
-// newest-first.
+// The footer version stamp is derived from the newest changelog entry so the
+// two can never drift out of sync. Keep changelog.json ordered newest-first.
 const currentVersion = changelog[0].version;
 
 interface Props {
@@ -186,11 +184,6 @@ const schemas = tool
         >
           ☕ Buy me a coffee
         </a>
-        <a
-          href="/#whats-new"
-          class="hidden cursor-pointer bg-transparent text-xs text-on-dark-dim no-underline transition-colors hover:text-on-dark lg:block"
-          aria-label={`What's new in v${currentVersion}`}
-        >v{currentVersion}</a>
 
         <!-- Mobile hamburger -->
         <button
@@ -241,7 +234,7 @@ const schemas = tool
         );
       })}
     </nav>
-    <div class="flex items-center justify-between border-t border-white/10 pt-4">
+    <div class="flex items-center border-t border-white/10 pt-4">
       <div class="flex items-center gap-4">
         <a
           href="https://buymeacoffee.com/alekslinde"
@@ -260,11 +253,6 @@ const schemas = tool
           </svg>
         </a>
       </div>
-        <a
-          href="/#whats-new"
-          class="cursor-pointer bg-transparent text-xs text-on-dark-dim no-underline transition-colors hover:text-on-dark"
-          aria-label={`What's new in v${currentVersion}`}
-        >v{currentVersion}</a>
     </div>
   </div>
 
@@ -281,6 +269,7 @@ const schemas = tool
           <span class="mx-2 text-on-dark-faint" aria-hidden="true">·</span>
           <a href="/health" class="text-on-dark-dim underline underline-offset-2 hover:text-purple-300 transition-colors">Tool health</a>
         </p>
+        <p class="mt-2 font-mono text-[0.68rem] text-on-dark-faint">v{currentVersion}</p>
       </section>
     </footer>
   </div>
