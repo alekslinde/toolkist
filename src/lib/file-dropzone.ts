@@ -376,6 +376,10 @@ export async function fetchLinkToFiles(url: string): Promise<File[]> {
   const targets = [url, ...RAW_PROXIES.map((p) => p(url))];
   for (const target of targets) {
     try {
+      // codeql[js/request-forgery]: false positive — this is a 100% client-side
+      // app (no backend); the fetch runs in the user's own browser on their
+      // explicit paste of a URL they copied, equivalent to navigating to it.
+      // Scheme is restricted to http/https and credentials are stripped above.
       const res = await fetch(target, { signal: AbortSignal.timeout(15000) });
       if (!res.ok) continue;
       const blob = await res.blob();
