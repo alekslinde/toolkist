@@ -35,48 +35,28 @@ const toolCount = tools.length;
 
   <!-- Hero -->
   <header class="border-b border-slate-200 bg-surface px-8 pb-8 pt-10 text-center lg:px-14 lg:pt-12">
-    <p class="mb-4 font-mono text-[0.68rem] uppercase tracking-[0.2em] text-purple-500">
-      Free · Open source · No account needed
-    </p>
-
-    <h1 class="font-serif mb-4 text-[clamp(2rem,4vw,3rem)] font-normal leading-[1.05] tracking-tight text-slate-900">
-      Sharp software.<br />
-      <em class="bg-gradient-to-br from-indigo-500 to-purple-500 bg-clip-text font-script not-italic text-transparent">
-        {toolCount} tools that run 100% in your browser.
-      </em>
-    </h1>
-
-    <p class="mx-auto mb-6 max-w-lg text-base leading-relaxed text-slate-500">
-      Built for developers and designers. Everything runs locally in your tab — your files never leave your device.
-    </p>
-
-    <!-- CTAs -->
-    <div class="mb-6 flex flex-wrap items-center justify-center gap-3">
-      <a
-        href="/#tools"
-        class="rounded-lg bg-gradient-to-br from-indigo-500 to-purple-500 px-5 py-2.5 text-sm font-medium text-white no-underline hover:opacity-90"
-      >Explore {toolCount} tools</a>
+    <p class="mb-4">
       <a
         href="https://github.com/alekslinde/toolkist"
         target="_blank"
         rel="noopener noreferrer"
-        aria-label="Star Toolkist on GitHub"
         data-track="gh"
-        class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-surface px-4 py-2.5 text-sm font-medium text-slate-600 no-underline transition-colors hover:border-purple-300 hover:text-purple-600"
+        class="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 font-mono text-[0.68rem] uppercase tracking-[0.2em] text-slate-500 no-underline transition-colors hover:border-purple-300 hover:text-purple-600"
       >
-        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-          <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
+        <svg class="h-3 w-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
         </svg>
         Star on GitHub</a
       >
-      <a
-        href="https://buymeacoffee.com/alekslinde"
-        target="_blank"
-        rel="noopener noreferrer"
-        class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-surface px-4 py-2.5 text-sm font-medium text-slate-600 no-underline transition-colors hover:border-purple-300 hover:text-purple-600"
-      >☕ Buy me a coffee</a
-      >
-    </div>
+    </p>
+
+    <h1 class="font-serif mx-auto mb-4 max-w-3xl text-[clamp(2rem,4vw,3rem)] font-normal leading-[1.05] tracking-tight text-slate-900">
+      Free tools that run entirely in your browser.
+    </h1>
+
+    <p class="mx-auto mb-6 max-w-xl text-base leading-relaxed text-slate-500">
+      {toolCount} developer utilities — compress PDFs, convert fonts, check contrast — with no uploads, no account, no tracking.
+    </p>
 
     <!-- Search -->
     <div class="relative mx-auto w-full max-w-2xl">
@@ -85,7 +65,7 @@ const toolCount = tools.length;
         id="tool-search"
         type="search"
         autocomplete="off"
-        class="w-full rounded-lg border border-slate-200 bg-slate-50 py-4 pl-12 pr-5 text-base text-slate-900 shadow-sm focus:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-100"
+        class="w-full rounded-lg border border-slate-200 bg-slate-50 py-4 pl-12 pr-16 text-base text-slate-900 shadow-sm focus:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-100"
       />
       <svg class="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
         <circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="m21 21-4.35-4.35"/>
@@ -95,11 +75,33 @@ const toolCount = tools.length;
         class="pointer-events-none absolute left-12 top-1/2 -translate-y-1/2 text-base text-slate-500 transition-opacity duration-200 ease-out"
         aria-hidden="true"
       >Search {toolCount} tools…</span>
+      <kbd
+        aria-hidden="true"
+        class="pointer-events-none absolute right-4 top-1/2 hidden -translate-y-1/2 rounded border border-slate-200 bg-surface px-1.5 py-0.5 font-mono text-[0.65rem] text-slate-400 sm:block"
+      >⌘K</kbd>
       <ul
         id="search-results"
         class="absolute left-0 right-0 top-full z-10 mt-1 hidden rounded-lg border border-slate-200 bg-surface text-left shadow-lg"
         role="listbox"
       ></ul>
+    </div>
+
+    <!-- Popular shortcuts -->
+    <div class="mt-3 flex flex-wrap items-center justify-center gap-2">
+      <span class="text-xs text-slate-400">Popular:</span>
+      <a href="/tools/pdf-compress" class="rounded-full border border-slate-200 bg-surface px-3 py-1 text-xs text-slate-600 no-underline transition-colors hover:border-purple-300 hover:text-purple-600">Compress PDF</a>
+      <a href="/tools/font-converter" class="rounded-full border border-slate-200 bg-surface px-3 py-1 text-xs text-slate-600 no-underline transition-colors hover:border-purple-300 hover:text-purple-600">WOFF2</a>
+      <a href="/tools/wcag-contrast" class="rounded-full border border-slate-200 bg-surface px-3 py-1 text-xs text-slate-600 no-underline transition-colors hover:border-purple-300 hover:text-purple-600">Contrast</a>
+      <a href="/tools/json-formatter" class="rounded-full border border-slate-200 bg-surface px-3 py-1 text-xs text-slate-600 no-underline transition-colors hover:border-purple-300 hover:text-purple-600">JSON</a>
+    </div>
+
+    <!-- Primary action -->
+    <div class="mt-6">
+      <a
+        href="/#tools"
+        class="inline-block rounded-lg bg-gradient-to-br from-indigo-500 to-purple-500 px-5 py-2.5 text-sm font-medium text-white no-underline hover:opacity-90"
+      >Browse all tools ↓</a
+      >
     </div>
 
     <!-- Trust row -->
@@ -179,8 +181,7 @@ const toolCount = tools.length;
   const ph      = document.getElementById('search-ph');
 
   if (input && results) {
-    input.addEventListener('input', () => {
-      const q = input.value.trim().toLowerCase();
+    input.addEventListener('input', () => {      const q = input.value.trim().toLowerCase();
       results.innerHTML = '';
       if (ph) ph.style.opacity = q ? '0' : '1';
       if (!q) { results.classList.add('hidden'); return; }
@@ -204,6 +205,14 @@ const toolCount = tools.length;
     document.addEventListener('click', (e) => {
       if (!input.contains(e.target) && !results.contains(e.target)) {
         results.classList.add('hidden');
+      }
+    });
+
+    // ⌘K / Ctrl+K focuses search from anywhere on the page.
+    document.addEventListener('keydown', (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        input.focus();
       }
     });
   }
