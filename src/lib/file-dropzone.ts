@@ -94,15 +94,40 @@ export interface MultiDropZoneOptions {
 }
 
 /**
- * Shared drag/click wiring for a `<FileDropZone>` root. Toggles the
- * `data-dz-over` highlight and forwards clicks to the labelled input.
- * Keyboard needs no handling: the input is the real control and operates
- * natively. Returns the file input so callers can attach change/drop logic.
+ * Extract files from a paste event (clipboardData.files or items).
  */
-function bindZone(root: HTMLElement, onDrop: (files: FileList | undefined) => void): HTMLInputElement {
+function filesFromPaste(e: ClipboardEvent): File[] {
+  const dt = e.clipboardData;
+  if (!dt) return [];
+  if (dt.files?.length) return Array.from(dt.files);
+  const out: File[] = [];
+  for (const item of Array.from(dt.items ?? [])) {
+    if (item.kind === 'file') {
+      const f = item.getAsFile();
+      if (f) out.push(f);
+    }
+  }
+  return out;
+}
+
+/**
+ * Shared drag/click/paste wiring for a `<FileDropZone>` root. Toggles the
+ * `data-dz-over` highlight and forwards clicks to the labelled input.
+ * Paste is listened for on the root and arrives when the file input — the
+ * real keyboard control — is focused, because the event bubbles. The zone
+ * root is not given a tabindex: a plain div with tabindex="0" is a
+ * non-interactive tab stop. No document-level listeners, so multiple zones
+ * neither leak nor race.
+ */
+function bindZone(root: HTMLElement, onFiles: (files: File[]) => void): HTMLInputElement {
   const input = root.querySelector<HTMLInputElement>('[data-dz-input]')!;
 
   root.addEventListener('click', () => input.click());
+  // Pointer users land on the input, not the zone, so a following paste
+  // bubbles here without an extra keyboard stop.
+  root.addEventListener('pointerdown', () => {
+    input.focus({ preventScroll: true });
+  });
   root.addEventListener('dragover', (e) => {
     e.preventDefault();
     root.dataset.dzOver = 'true';
@@ -111,7 +136,14 @@ function bindZone(root: HTMLElement, onDrop: (files: FileList | undefined) => vo
   root.addEventListener('drop', (e) => {
     e.preventDefault();
     delete root.dataset.dzOver;
-    onDrop(e.dataTransfer?.files);
+    const list = e.dataTransfer?.files;
+    if (list?.length) onFiles(Array.from(list));
+  });
+  root.addEventListener('paste', (e) => {
+    const files = filesFromPaste(e);
+    if (!files.length) return;
+    e.preventDefault();
+    onFiles(files);
   });
 
   return input;
@@ -127,14 +159,13 @@ export function wireMultiDropZone(id: string, opts: MultiDropZoneOptions): void 
   const root = document.getElementById(id);
   if (!root) throw new Error(`FileDropZone #${id} not found`);
 
-  const emit = (list: FileList | undefined) => {
-    const files = Array.from(list ?? []);
+  const emit = (files: File[]) => {
     if (files.length) opts.onFiles(files);
   };
 
   const input = bindZone(root, emit);
   input.addEventListener('change', () => {
-    emit(input.files ?? undefined);
+    emit(Array.from(input.files ?? []));
     input.value = ''; // allow re-selecting the same files
   });
 }
@@ -142,8 +173,8 @@ export function wireMultiDropZone(id: string, opts: MultiDropZoneOptions): void 
 /**
  * Wire a `<FileDropZone id={id}>` instance. Expects the component's markup
  * (empty prompt, filled card, hidden input, clear button, all tagged with
- * `data-dz-*` attributes). Handles drag/drop, click-to-browse, replace, and
- * the empty↔filled swap. The tool supplies validation via `onFile`.
+ * `data-dz-*` attributes). Handles drag/drop, click-to-browse, paste, replace,
+ * and the empty↔filled swap. The tool supplies validation via `onFile`.
  */
 export function wireDropZone(id: string, opts: DropZoneOptions): DropZoneHandle {
   const root = document.getElementById(id);
@@ -184,8 +215,7 @@ export function wireDropZone(id: string, opts: DropZoneOptions): DropZoneHandle 
     if (ok !== false) render(file);
   };
 
-  // Shared drag/click/keyboard wiring; drop takes the first file (single mode).
-  bindZone(root, (files) => accept(files?.[0]));
+  bindZone(root, (files) => accept(files[0]));
   input.addEventListener('change', () => accept(input.files?.[0]));
 
   clearBtn.addEventListener('click', (e) => {
