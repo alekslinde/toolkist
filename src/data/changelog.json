@@ -1,5 +1,15 @@
 [
   {
+    "version": "7.5",
+    "date": "2026-10-14",
+    "changes": [
+      "New tool: Accessibility Checker — audit HTML, JSX and Astro markup against 20 WCAG 2.2 rules covering images, forms, ARIA, headings, contrast and focus order, with source-scanning and DOM engines. Everything runs in your browser — no uploads",
+      "Prompt Token Saver: accurate o200k token counts, live compression with a word-level visual diff, a low-overlap similarity warning, and safer abbreviations via a preserve-list",
+      "Every upload zone now accepts pastes — Ctrl/Cmd+V an image from the clipboard, or paste a copied link or image address to fetch the file directly, with an inline notice if the site blocks cross-site requests",
+      "Home page: rebuilt hero with search-first layout and trust row, a What's new section with the latest releases, a full changelog timeline page, a header theme switcher, and a footer version stamp"
+    ]
+  },
+  {
     "version": "7.4",
     "date": "2026-10-13",
     "changes": [
