@@ -94,12 +94,29 @@ export interface MultiDropZoneOptions {
 }
 
 /**
- * Shared drag/click wiring for a `<FileDropZone>` root. Toggles the
+ * Extract files from a paste event (clipboardData.files or items).
+ */
+function filesFromPaste(e: ClipboardEvent): File[] {
+  const dt = e.clipboardData;
+  if (!dt) return [];
+  if (dt.files?.length) return Array.from(dt.files);
+  const out: File[] = [];
+  for (const item of Array.from(dt.items ?? [])) {
+    if (item.kind === 'file') {
+      const f = item.getAsFile();
+      if (f) out.push(f);
+    }
+  }
+  return out;
+}
+
+/**
+ * Shared drag/click/paste wiring for a `<FileDropZone>` root. Toggles the
  * `data-dz-over` highlight and forwards clicks to the labelled input.
  * Keyboard needs no handling: the input is the real control and operates
  * natively. Returns the file input so callers can attach change/drop logic.
  */
-function bindZone(root: HTMLElement, onDrop: (files: FileList | undefined) => void): HTMLInputElement {
+function bindZone(root: HTMLElement, onDrop: (files: FileList | File[] | undefined) => void): HTMLInputElement {
   const input = root.querySelector<HTMLInputElement>('[data-dz-input]')!;
 
   root.addEventListener('click', () => input.click());
@@ -112,6 +129,27 @@ function bindZone(root: HTMLElement, onDrop: (files: FileList | undefined) => vo
     e.preventDefault();
     delete root.dataset.dzOver;
     onDrop(e.dataTransfer?.files);
+  });
+
+  // Paste (Ctrl/Cmd+V) when the zone or a child has focus, or when focus is
+  // on the document body (common after click-to-browse). Only consume the
+  // event if we actually got files so text paste still works elsewhere.
+  const onPaste = (e: ClipboardEvent) => {
+    const files = filesFromPaste(e);
+    if (!files.length) return;
+    e.preventDefault();
+    onDrop(files);
+  };
+  root.addEventListener('paste', onPaste);
+  // Also listen on document so paste works after the user has clicked the zone
+  // (focus may move to body). Guard: only act if the last interaction was with this zone.
+  let zoneActive = false;
+  root.addEventListener('pointerdown', () => { zoneActive = true; });
+  document.addEventListener('pointerdown', (e) => {
+    if (!root.contains(e.target as Node)) zoneActive = false;
+  });
+  document.addEventListener('paste', (e) => {
+    if (zoneActive) onPaste(e);
   });
 
   return input;
@@ -127,7 +165,7 @@ export function wireMultiDropZone(id: string, opts: MultiDropZoneOptions): void 
   const root = document.getElementById(id);
   if (!root) throw new Error(`FileDropZone #${id} not found`);
 
-  const emit = (list: FileList | undefined) => {
+  const emit = (list: FileList | File[] | undefined) => {
     const files = Array.from(list ?? []);
     if (files.length) opts.onFiles(files);
   };
@@ -142,8 +180,8 @@ export function wireMultiDropZone(id: string, opts: MultiDropZoneOptions): void 
 /**
  * Wire a `<FileDropZone id={id}>` instance. Expects the component's markup
  * (empty prompt, filled card, hidden input, clear button, all tagged with
- * `data-dz-*` attributes). Handles drag/drop, click-to-browse, replace, and
- * the empty↔filled swap. The tool supplies validation via `onFile`.
+ * `data-dz-*` attributes). Handles drag/drop, click-to-browse, paste, replace,
+ * and the empty↔filled swap. The tool supplies validation via `onFile`.
  */
 export function wireDropZone(id: string, opts: DropZoneOptions): DropZoneHandle {
   const root = document.getElementById(id);
@@ -184,8 +222,11 @@ export function wireDropZone(id: string, opts: DropZoneOptions): DropZoneHandle 
     if (ok !== false) render(file);
   };
 
-  // Shared drag/click/keyboard wiring; drop takes the first file (single mode).
-  bindZone(root, (files) => accept(files?.[0]));
+  // Shared drag/click/paste wiring; drop/paste takes the first file (single mode).
+  bindZone(root, (files) => {
+    const list = files instanceof FileList ? Array.from(files) : (files ?? []);
+    accept(list[0]);
+  });
   input.addEventListener('change', () => accept(input.files?.[0]));
 
   clearBtn.addEventListener('click', (e) => {
