@@ -20,6 +20,7 @@ npm run dev        # astro dev server
 - **New shared UI** goes in `src/components/`; check there first before building new markup.
 - **New shared logic** goes in `src/lib/` with a colocated `*.test.ts` file.
 - **New tools** go in `src/pages/tools/<slug>.astro` and must be registered in `src/data/tools.ts`. Follow the structure of an existing tool page of a similar kind.
+- **Changelog entries** go in `src/data/changelog.json` (newest first) — this drives the in-app changelog page, the home page's "What's new" cards, and the footer version stamp. After editing it, run `npm run changelog` to regenerate the root `CHANGELOG.md`; CI checks that file stays in sync.
 - Extract logic used in 2+ places into `src/lib/` rather than duplicating it.
 - Match the existing Tailwind utility patterns (see the "Design system" section in [CLAUDE.md](CLAUDE.md)) rather than introducing new ones.
 - All tool logic must run client-side. No new backend, no new server-side processing of user files.

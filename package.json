@@ -10,7 +10,9 @@
     "build": "astro build",
     "preview": "astro preview",
     "preview:worker": "astro build && wrangler dev",
-    "deploy": "astro build && wrangler deploy"
+    "deploy": "astro build && wrangler deploy",
+    "changelog": "node scripts/gen-changelog.mjs",
+    "changelog:check": "node scripts/gen-changelog.mjs && git diff --exit-code CHANGELOG.md"
   },
   "devDependencies": {
     "@types/upng-js": "^2.1.5",
