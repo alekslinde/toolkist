@@ -80,6 +80,8 @@ The Cloudflare Worker (`worker/counter.js`) handles:
 
 - `GET/POST /u?k=<key>` — usage counters via Durable Objects
 
+Production deploys also run via a manually-triggered [Deploy workflow](.github/workflows/deploy.yml) (Actions tab → Deploy → Run workflow), as an alternative to `npm run deploy` from a local machine. It needs `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` set as secrets on the repo's `production` GitHub environment.
+
 ---
 
 ## Project Structure
