@@ -96,12 +96,23 @@ const toolCount = tools.length;
     </div>
 
     <!-- Primary action -->
-    <div class="mt-6">
+    <div class="mt-6 flex flex-wrap items-center justify-center gap-3">
       <a
         href="/#tools"
         class="inline-block rounded-lg bg-gradient-to-br from-indigo-500 to-purple-500 px-5 py-2.5 text-sm font-medium text-white no-underline hover:opacity-90"
       >Browse all tools ↓</a
       >
+      <button
+        type="button"
+        data-pwa-install
+        class="hidden items-center gap-1.5 rounded-lg border border-slate-200 px-4 py-2.5 text-sm text-slate-600 hover:border-purple-300 lg:!hidden"
+      >
+        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 3v12m0 0-4-4m4 4 4-4" />
+          <path d="M5 17v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2" />
+        </svg>
+        Install app
+      </button>
     </div>
 
     <!-- Trust row -->
