@@ -390,20 +390,28 @@ const schemas = tool
       document.addEventListener('astro:page-load', setup);
 
       // Install app: one button shared by both paths. Chromium browsers fire
-      // beforeinstallprompt and the button calls .prompt(); iOS Safari never
-      // fires that event and has no programmatic install API, so there the
-      // button instead reveals the manual Share → Add to Home Screen steps.
+      // beforeinstallprompt and the button calls .prompt(); Safari never fires
+      // that event and has no programmatic install API, so there the button
+      // instead reveals the manual steps — which differ per platform: iOS and
+      // iPadOS add to the Home Screen, macOS adds to the Dock.
       (function () {
         var ua = window.navigator.userAgent;
-        var isIOS = /iPad|iPhone|iPod/.test(ua) || (ua.includes('Macintosh') && navigator.maxTouchPoints > 1);
-        var isSafari = /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS|OPiOS/.test(ua);
+        // iPadOS 13+ reports a Macintosh UA; touch points are what separate it
+        // from a real Mac.
+        var isTouchApple = /iPad|iPhone|iPod/.test(ua) || (ua.includes('Macintosh') && navigator.maxTouchPoints > 1);
+        var isMacDesktop = ua.includes('Macintosh') && navigator.maxTouchPoints === 0;
+        var isSafari = /Safari/.test(ua) && !/Chrome|Chromium|CriOS|FxiOS|EdgiOS|OPiOS|Edg\//.test(ua);
         var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-        var iosInstallable = isIOS && isSafari && !isStandalone;
+        var safariInstallable = isSafari && !isStandalone && (isTouchApple || isMacDesktop);
 
         function showInstallButtons() {
           document.querySelectorAll('[data-pwa-install]').forEach(function (btn) {
             btn.classList.remove('hidden');
             btn.classList.add('flex');
+            // Chromium already offers an address-bar install control at desktop
+            // widths, so the button stays mobile-only there; macOS Safari has
+            // no such affordance and needs it shown.
+            if (isMacDesktop) btn.classList.remove('lg:!hidden');
           });
         }
         function hideInstallButtons() {
@@ -422,7 +430,13 @@ const schemas = tool
           hideInstallButtons();
         });
         document.addEventListener('astro:page-load', function () {
-          if (window.__toolkistInstallEvent || iosInstallable) showInstallButtons();
+          if (window.__toolkistInstallEvent || safariInstallable) showInstallButtons();
+          if (safariInstallable) {
+            var variant = isMacDesktop ? 'dock' : 'home-screen';
+            document.querySelectorAll('[data-install-tip-variant]').forEach(function (el) {
+              el.classList.toggle('hidden', el.dataset.installTipVariant !== variant);
+            });
+          }
           document.querySelectorAll('[data-pwa-install]').forEach(function (btn) {
             btn.addEventListener('click', function () {
               var evt = window.__toolkistInstallEvent;
@@ -430,7 +444,7 @@ const schemas = tool
                 evt.prompt();
                 return;
               }
-              if (!iosInstallable) return;
+              if (!safariInstallable) return;
               var tip = document.querySelector('[data-ios-install-tip]');
               if (!tip) return;
               var showing = tip.classList.toggle('hidden') === false;

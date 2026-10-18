@@ -122,7 +122,12 @@ const toolCount = tools.length;
       data-ios-install-tip
       class="mx-auto mt-3 hidden max-w-sm rounded-lg border border-slate-200 bg-surface px-4 py-3 text-sm text-slate-600"
     >
-      Tap <strong>Share</strong> in Safari's toolbar, then <strong>Add to Home Screen</strong>.
+      <span data-install-tip-variant="home-screen" class="hidden">
+        Tap <strong>Share</strong> in Safari's toolbar, then <strong>Add to Home Screen</strong>.
+      </span>
+      <span data-install-tip-variant="dock" class="hidden">
+        Choose <strong>File → Add to Dock</strong> in Safari's menu bar.
+      </span>
     </p>
 
     <!-- Trust row -->
