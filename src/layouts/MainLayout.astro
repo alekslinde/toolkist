@@ -431,7 +431,7 @@ const schemas = tool
                 return;
               }
               if (!iosInstallable) return;
-              var tip = btn.parentElement.querySelector('[data-ios-install-tip]');
+              var tip = document.querySelector('[data-ios-install-tip]');
               if (!tip) return;
               var showing = tip.classList.toggle('hidden') === false;
               btn.setAttribute('aria-expanded', String(showing));
