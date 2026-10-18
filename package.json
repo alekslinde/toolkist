@@ -18,7 +18,7 @@
     "@types/upng-js": "^2.1.5",
     "jsdom": "^30.0.1",
     "puppeteer": "^25.13.0",
-    "vitest": "~5.0.4",
+    "vitest": "~5.0.5",
     "wrangler": "^4.151.0"
   },
   "dependencies": {
