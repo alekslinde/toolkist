@@ -102,28 +102,33 @@ const toolCount = tools.length;
         class="inline-block rounded-lg bg-gradient-to-br from-indigo-500 to-purple-500 px-5 py-2.5 text-sm font-medium text-white no-underline hover:opacity-90"
       >Browse all tools ↓</a
       >
-      <div class="relative">
-        <button
-          type="button"
-          data-pwa-install
-          class="hidden items-center gap-1.5 rounded-lg border border-slate-200 px-4 py-2.5 text-sm text-slate-600 hover:border-purple-300 lg:!hidden"
-          aria-expanded="false"
-        >
-          <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M12 3v12m0 0-4-4m4 4 4-4" />
-            <path d="M5 17v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2" />
-          </svg>
-          Install app
-        </button>
-        <div
-          data-ios-install-tip
-          class="absolute left-1/2 top-full z-10 mt-2 hidden w-64 -translate-x-1/2 rounded-lg border border-slate-200 bg-surface p-3 text-left text-xs text-slate-600 shadow-lg"
-          role="tooltip"
-        >
-          Tap <strong>Share</strong> in Safari's toolbar, then <strong>Add to Home Screen</strong>.
-        </div>
-      </div>
+      <button
+        type="button"
+        data-pwa-install
+        class="hidden items-center gap-1.5 rounded-lg border border-slate-200 px-4 py-2.5 text-sm text-slate-600 hover:border-purple-300 lg:!hidden"
+        aria-expanded="false"
+        aria-controls="ios-install-tip"
+      >
+        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 3v12m0 0-4-4m4 4 4-4" />
+          <path d="M5 17v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2" />
+        </svg>
+        Install app
+      </button>
     </div>
+
+    <p
+      id="ios-install-tip"
+      data-ios-install-tip
+      class="mx-auto mt-3 hidden max-w-sm rounded-lg border border-slate-200 bg-surface px-4 py-3 text-sm text-slate-600"
+    >
+      <span data-install-tip-variant="home-screen" class="hidden">
+        Tap <strong>Share</strong> in Safari's toolbar, then <strong>Add to Home Screen</strong>.
+      </span>
+      <span data-install-tip-variant="dock" class="hidden">
+        Choose <strong>File → Add to Dock</strong> in Safari's menu bar.
+      </span>
+    </p>
 
     <!-- Trust row -->
     <p class="mx-auto mt-4 max-w-2xl text-xs text-slate-400">
