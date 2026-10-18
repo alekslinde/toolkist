@@ -389,48 +389,55 @@ const schemas = tool
 
       document.addEventListener('astro:page-load', setup);
 
-      // Install app: one button shared by both paths. Chromium browsers fire
-      // beforeinstallprompt and the button calls .prompt(); iOS Safari never
-      // fires that event and has no programmatic install API, so there the
-      // button instead reveals the manual Share → Add to Home Screen steps.
+      // PWA install prompt: captured once at the window level (it only ever
+      // fires before the app is installed), then replayed to whichever
+      // install button is in the DOM after each client-side navigation.
+      function showInstallButtons() {
+        document.querySelectorAll('[data-pwa-install]').forEach(function (btn) {
+          btn.classList.remove('hidden');
+          btn.classList.add('flex');
+        });
+      }
+      function hideInstallButtons() {
+        document.querySelectorAll('[data-pwa-install]').forEach(function (btn) {
+          btn.classList.add('hidden');
+          btn.classList.remove('flex');
+        });
+      }
+      window.addEventListener('beforeinstallprompt', function (e) {
+        e.preventDefault();
+        window.__toolkistInstallEvent = e;
+        showInstallButtons();
+      });
+      window.addEventListener('appinstalled', function () {
+        window.__toolkistInstallEvent = null;
+        hideInstallButtons();
+      });
+      document.addEventListener('astro:page-load', function () {
+        if (window.__toolkistInstallEvent) showInstallButtons();
+        document.querySelectorAll('[data-pwa-install]').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            var evt = window.__toolkistInstallEvent;
+            if (evt) evt.prompt();
+          });
+        });
+      });
+
+      // iOS Safari never fires beforeinstallprompt and has no programmatic
+      // install API, so it gets its own button that shows the manual
+      // Share → Add to Home Screen steps instead of calling .prompt().
       (function () {
         var ua = window.navigator.userAgent;
         var isIOS = /iPad|iPhone|iPod/.test(ua) || (ua.includes('Macintosh') && navigator.maxTouchPoints > 1);
         var isSafari = /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS|OPiOS/.test(ua);
         var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-        var iosInstallable = isIOS && isSafari && !isStandalone;
+        if (!isIOS || !isSafari || isStandalone) return;
 
-        function showInstallButtons() {
-          document.querySelectorAll('[data-pwa-install]').forEach(function (btn) {
+        document.addEventListener('astro:page-load', function () {
+          document.querySelectorAll('[data-ios-install]').forEach(function (btn) {
             btn.classList.remove('hidden');
             btn.classList.add('flex');
-          });
-        }
-        function hideInstallButtons() {
-          document.querySelectorAll('[data-pwa-install]').forEach(function (btn) {
-            btn.classList.add('hidden');
-            btn.classList.remove('flex');
-          });
-        }
-        window.addEventListener('beforeinstallprompt', function (e) {
-          e.preventDefault();
-          window.__toolkistInstallEvent = e;
-          showInstallButtons();
-        });
-        window.addEventListener('appinstalled', function () {
-          window.__toolkistInstallEvent = null;
-          hideInstallButtons();
-        });
-        document.addEventListener('astro:page-load', function () {
-          if (window.__toolkistInstallEvent || iosInstallable) showInstallButtons();
-          document.querySelectorAll('[data-pwa-install]').forEach(function (btn) {
             btn.addEventListener('click', function () {
-              var evt = window.__toolkistInstallEvent;
-              if (evt) {
-                evt.prompt();
-                return;
-              }
-              if (!iosInstallable) return;
               var tip = btn.parentElement.querySelector('[data-ios-install-tip]');
               if (!tip) return;
               var showing = tip.classList.toggle('hidden') === false;
